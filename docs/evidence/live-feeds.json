@@ -1,0 +1,48 @@
+{
+  "checkedAt": "2026-11-06T18:08:28Z",
+  "feeds": [
+    {
+      "datedStoriesPastWeek": 10,
+      "name": "The Verge",
+      "status": "available",
+      "url": "https://www.theverge.com/rss/index.xml"
+    },
+    {
+      "datedStoriesPastWeek": 6,
+      "name": "Ars Technica",
+      "status": "available",
+      "url": "https://feeds.arstechnica.com/arstechnica/technology-lab"
+    },
+    {
+      "datedStoriesPastWeek": 12,
+      "name": "TechCrunch",
+      "status": "available",
+      "url": "https://techcrunch.com/feed/"
+    },
+    {
+      "datedStoriesPastWeek": 12,
+      "name": "Google Blog",
+      "status": "available",
+      "url": "https://blog.google/rss/"
+    },
+    {
+      "datedStoriesPastWeek": 8,
+      "name": "NVIDIA Blog",
+      "status": "available",
+      "url": "https://blogs.nvidia.com/feed/"
+    },
+    {
+      "datedStoriesPastWeek": 0,
+      "name": "Microsoft Blog",
+      "status": "available",
+      "url": "https://blogs.microsoft.com/feed/"
+    },
+    {
+      "datedStoriesPastWeek": 12,
+      "name": "BBC Technology",
+      "status": "available",
+      "url": "https://feeds.bbci.co.uk/news/technology/rss.xml"
+    }
+  ],
+  "scope": "real public RSS availability; not paid AI or credentialed socials"
+}

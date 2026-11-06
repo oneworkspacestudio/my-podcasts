@@ -1,0 +1,385 @@
+import { AudioPlayer } from "@/components/ui"
+Page Dashboard
+  Row variant=topbar
+    Row gap=sm
+      Image src="./podcasts.svg" alt="" width=38 height=38
+      Text variant=brand "My Podcasts"
+      Badge tone=blue "STUDIO"
+    Row gap=sm
+      Text variant=header-note "A little more signal. A lot less noise."
+      Link href="/" variant=apps "Apps"
+  If condition=$signedOut
+    Section variant=login
+      If condition=$error
+        Alert tone=warning role=alert "$error"
+      Icon name=mic variant=login-icon
+      Text variant=eyebrow "YOUR PRIVATE PODCAST STUDIO"
+      Heading level=1 "The stories worth listening to."
+      Text "Turn the latest in technology into thoughtful conversations, made just for you."
+      If condition=$localLogin
+        Input name=email value=$email type=email label="Email" autoComplete=username
+        Input name=password value=$password type=password label="Password" autoComplete=current-password
+        Button intent=login variant=primary "$loginLabel"
+      Else
+        Link href=$loginURL variant=primary "Sign in with MyAccounts"
+  Else
+    Row variant=workspace
+      Section variant=sidebar
+        Text variant=eyebrow "YOUR LISTENING SPACE"
+        Button intent=library variant=$libraryVariant icon=headphones "Episode library"
+        Button intent=studio variant=$studioVariant icon=sparkles "Create an episode"
+        Button intent=queue variant=$queueVariant icon=activity "Production queue"
+        Button intent=sources variant=$sourcesVariant icon=radio "People & sources"
+        Spacer
+        Card variant=sidebar-note
+          Row gap=sm
+            Icon name=clock
+            Text variant=eyebrow "MADE WHILE YOU’RE AWAY"
+          Text "$scheduleDescription"
+          Button intent=studio variant=text "Manage your show"
+        Button intent=settings variant=$settingsVariant icon=settings "Connections"
+        Button intent=logout variant=nav icon=logout "Sign out"
+      Stack variant=main
+        If condition=$error
+          Alert tone=warning role=alert "$error"
+        If condition=$toast
+          Alert tone=success role=status "$toast"
+        If condition=$loading
+          Text variant=muted "Opening your studio…"
+        Else
+          If condition=$showLibrary
+            Row variant=page-heading
+              Stack gap=sm
+                Text variant=eyebrow "YOUR DAILY SIGNAL"
+                Heading level=1 "Good stories. Great company."
+                Text variant=muted "Fresh perspectives from the people shaping technology."
+              Button intent=studio variant=primary icon=plus "Create an episode"
+            Card variant=hero
+              Stack variant=hero-copy
+                Badge tone=blue "YOUR OWN TECH PODCAST"
+                Heading level=2 "Stay curious. We’ll do the homework."
+                Text "The headlines, the original posts, the bigger picture. Researched, questioned, and brought to life by two thoughtful voices."
+                Row gap=md
+                  Button intent=studio variant=dark icon=sparkles "Make something worth hearing"
+                  Text variant=muted "Made for your ears. Backed by sources."
+              Section variant=hero-art
+                Row variant=art-label
+                  Text "THE TECH SIGNAL"
+                  Icon name=radio
+                Section variant=waveform
+                  Icon name=waveform
+                  Icon name=waveform
+                  Icon name=waveform
+                Row variant=art-bottom
+                  Text "ALEX + JAMIE"
+                  Text "ORIGINAL AI VOICES"
+            Row variant=stats
+              Card variant=stat
+                Icon name=headphones
+                Stack gap=sm
+                  Text variant=stat-number "$readyCount"
+                  Text variant=muted "Ready for your next walk"
+              Card variant=stat
+                Icon name=radio
+                Stack gap=sm
+                  Text variant=stat-number "$sourceCount"
+                  Text variant=muted "People & publications"
+              Card variant=stat
+                Icon name=clock
+                Stack gap=sm
+                  Text variant=stat-number "$scheduleLabel"
+                  Text variant=muted "$nextRunLabel"
+            Row variant=section-heading
+              Heading level=2 "Your episodes"
+              Text variant=muted "$libraryDescription"
+            If condition=$emptyLibrary
+              Card variant=empty
+                Icon name=headphones variant=large
+                Heading level=3 "Your next favourite listen starts here."
+                Text variant=muted "Choose your interests, pick your voices, and let your studio take it from there."
+                Button intent=studio variant=quiet icon=arrow-right "Create your first episode"
+            Else
+              Stack gap=md
+                For each=$episodes
+                  Card variant=episode
+                    Section variant=episode-cover
+                      Icon name=waveform
+                      Text "MY PODCASTS"
+                    Stack variant=episode-copy gap=sm
+                      Row gap=sm
+                        Badge tone=$item.tone "$item.statusLabel"
+                        Text variant=eyebrow "$item.date"
+                      Heading level=3 "$item.title"
+                      Text variant=muted "$item.summary"
+                      Text variant=small "$item.meta"
+                    Button intent=open payload=$item.id variant=play icon=$item.icon "$item.action"
+          If condition=$showStudio
+            Row variant=page-heading
+              Stack gap=sm
+                Text variant=eyebrow "THE CREATOR’S DESK"
+                Heading level=1 "Make it your kind of listen."
+                Text variant=muted "Set the direction. Your studio takes care of the research and production."
+            Row variant=studio-layout
+              Stack gap=lg
+                Card variant=form
+                  Row gap=sm
+                    Badge tone=blue "01"
+                    Heading level=2 "Give your show a point of view"
+                  Input name=showName value=$showName label="Show name" maxLength=90
+                  Input name=topics value=$topics variant=multiline label="What are you curious about?" maxLength=1200
+                  Text variant=muted "Follow people and choose publications in People & sources."
+                  Row variant=form-row
+                    Select name=format value=$format options=$formatOptions label="Episode format"
+                    Select name=minutes value=$minutes options=$minuteOptions label="Target length"
+                    Select name=lookbackHours value=$lookbackHours options=$lookbackOptions label="Research window"
+                Card variant=form
+                  Row gap=sm
+                    Badge tone=blue "02"
+                    Heading level=2 "Two voices. One good conversation."
+                  Row variant=narrators
+                    Card variant=narrator
+                      Badge tone=blue "ALEX"
+                      Heading level=3 "The curious anchor"
+                      Text variant=muted "Makes the complicated feel clear. Connects the dots and keeps things moving."
+                      Select name=voiceA value=$voiceA options=$voiceOptions label="Alex’s voice"
+                    Card variant=narrator
+                      Badge tone=mint "JAMIE"
+                      Heading level=3 "The thoughtful challenger"
+                      Text variant=muted "Asks the next question. Tests the big claims and brings another perspective."
+                      Select name=voiceB value=$voiceB options=$voiceOptions label="Jamie’s voice"
+                  Text variant=small "Original AI-generated narrators. Every episode includes a spoken disclosure."
+                Card variant=form
+                  Row gap=sm
+                    Badge tone=blue "03"
+                    Heading level=2 "A new episode, on your time"
+                  Row variant=form-row
+                    Select name=schedule value=$schedule options=$scheduleOptions label="Background production"
+                    Input name=at value=$at type=time label="Production starts at (UTC)"
+                  Text variant=muted "Your server keeps working when this tab is closed. Weekly episodes start on Mondays. Catch-up runs once after downtime."
+                  Text variant=small "Up to 3 productions per 24 hours and 50 saved episodes per account. AI research and speech use your connected API billing."
+              Stack variant=studio-aside gap=md
+                Card variant=show-preview
+                  Text variant=eyebrow "YOUR SHOW"
+                  Icon name=waveform variant=preview-wave
+                  Heading level=2 "$showName"
+                  Text "$previewDescription"
+                  Divider
+                  Text "Alex & Jamie · Original AI voices"
+                  Text variant=small "A fresh perspective, with the receipts."
+                Card variant=form
+                  Heading level=3 "From headline to headphones"
+                  Text variant=small "01  Read the reporting & original posts"
+                  Text variant=small "02  Build a source-linked conversation"
+                  Text variant=small "03  Check claims, attribution & flow"
+                  Text variant=small "04  Record, balance & chapter the audio"
+                  Button intent=save variant=quiet disabled=$busy "Save show settings"
+                  Button intent=generate variant=primary icon=sparkles disabled=$busy "Generate an episode"
+                  If condition=$needsConnection
+                    Text variant=small "Configure your selected writing and research providers in Connections."
+                  If condition=$speechMissing
+                    Text variant=small "Scripts can finish without voices. Connect OpenAI speech and resume when you’re ready to record."
+          If condition=$showQueue
+            Row variant=page-heading
+              Stack gap=sm
+                Text variant=eyebrow "QUIETLY WORKING IN THE BACKGROUND"
+                Heading level=1 "A little studio of your own."
+                Text variant=muted "Close the tab. Carry on with your day. Your server takes it from here."
+              Button intent=refresh variant=quiet icon=refresh "Refresh"
+            If condition=$emptyQueue
+              Card variant=empty
+                Icon name=activity variant=large
+                Heading level=3 "The studio is ready when you are."
+                Text variant=muted "New productions and interrupted jobs appear here."
+                Button intent=studio variant=primary "Create an episode"
+            Else
+              Stack gap=md
+                For each=$jobs
+                  Card variant=job
+                    Row variant=section-heading
+                      Heading level=3 "$item.title"
+                      Badge tone=$item.tone "$item.statusLabel"
+                    Text "$item.stage"
+                    Text variant=muted "$item.progress% complete · $item.date"
+                    If condition=$item.error
+                      Alert tone=warning "$item.error"
+                    Row gap=sm
+                      Button intent=open payload=$item.id variant=quiet "View production"
+                      If condition=$item.running
+                        Button intent=cancel payload=$item.id variant=text "Cancel production"
+                      If condition=$item.retryable
+                        Button intent=retry payload=$item.id variant=primary "Resume / regenerate"
+          If condition=$showSources
+            Row variant=page-heading
+              Stack gap=sm
+                Text variant=eyebrow "GOOD CONVERSATIONS START WITH GOOD SOURCES"
+                Heading level=1 "Follow the people. Read the room."
+                Text variant=muted "Original voices, independent reporting, and primary announcements."
+              Button intent=save variant=primary disabled=$busy "Save sources"
+            Card variant=source-note
+              Icon name=shield
+              Stack gap=sm
+                Heading level=3 "A post is a perspective. Reporting adds context."
+                Text "$socialDescription"
+                Text variant=small "$researchCoverage"
+            Row variant=section-heading
+              Heading level=2 "The people shaping technology"
+              Text variant=muted "$peopleCount selected"
+            Grid variant=people
+              For each=$people
+                Card variant=person
+                  Row gap=md
+                    Badge tone=blue "$item.initials"
+                    Stack gap=sm
+                      Heading level=3 "$item.name"
+                      Text variant=muted "$item.company"
+                  Checkbox name=$item.field checked=$item.selected label=$item.label
+                  Link href=$item.url target=_blank variant=text "View original profile ↗"
+            Row variant=section-heading
+              Heading level=2 "The publications behind the perspective"
+              Text variant=muted "Choose your regular reading list"
+            Grid variant=publications
+              For each=$feeds
+                Card variant=publication
+                  Heading level=3 "$item.name"
+                  Badge tone=$item.tone "$item.kind"
+                  Checkbox name=$item.field checked=$item.selected label=$item.label
+          If condition=$showSettings
+            Row variant=page-heading
+              Stack gap=sm
+                Text variant=eyebrow "THE CONNECTIONS BEHIND YOUR STUDIO"
+                Heading level=1 "Ready to make some noise?"
+                Text variant=muted "Connect research and speech. Keys stay on your private server."
+            Card variant=form
+              Row variant=section-heading
+                Heading level=2 "Research & writing"
+                Badge tone=$connectionTone "$connectionLabel"
+              Text variant=muted "Choose who researches, writes and reviews your show. Voices have their own connection below."
+              If condition=$isOwner
+                Row variant=form-row
+                  Select name=textProvider value=$textProvider options=$writerOptions label="Writing & editorial provider"
+                  Select name=researchProvider value=$researchProvider options=$researchOptions label="Research source"
+                Text variant=small "Automatic uses OpenAI web research, DeepSeek search, or selected feeds and direct X posts for AI Service. Local inference uses the service’s active model and shared queue."
+              Else
+                Text "Your Workspace owner manages these connections."
+            If condition=$isOwner
+              Card variant=form
+                Row variant=section-heading
+                  Heading level=2 "DeepSeek"
+                  Badge tone=blue "$deepSeekLabel"
+                Text variant=muted "Current web reporting and public posts through DeepSeek search, with structured scripts and an editorial pass. You can also use DeepSeek search with your local writer."
+                Input name=deepSeekKey value=$deepSeekKey type=password label="DeepSeek API key" autoComplete=off placeholder="Leave blank to keep the saved key"
+                Input name=deepSeekModel value=$deepSeekModel label="DeepSeek writing model"
+                Button intent=disconnectDeepSeek variant=text "Disconnect DeepSeek"
+              Card variant=form
+                Row variant=section-heading
+                  Heading level=2 "AI Service · Your local Ollama"
+                  Badge tone=blue "$serviceLabel"
+                Text variant=muted "Uses your existing AI Service and its selected Ollama model. It respects the shared inference queue and does not start or change models."
+                Input name=serviceURL value=$serviceURL label="AI Service URL on this server" placeholder="http://127.0.0.1:9042"
+                Input name=serviceToken value=$serviceToken type=password label="AI Service app credential" autoComplete=off placeholder="Leave blank to keep the saved credential"
+                Text variant=small "In AI Service, issue a local server app credential with app ID podcasts. Paste it here. This is a server connection; the URL is relative to the computer running My Podcasts."
+                Text variant=small "The service must be enabled with an active model. Automatic research uses the selected dated feeds and connected X posts; choose DeepSeek search for wider web coverage."
+                Button intent=disconnectService variant=text "Disconnect AI Service"
+              Card variant=form
+                Row variant=section-heading
+                  Heading level=2 "OpenAI · Voices & optional writing"
+                  Badge tone=blue "$speechLabel"
+                Text variant=muted "OpenAI provides the two narrator voices. Its key is also used when you select OpenAI for writing or web research. DeepSeek and AI Service handle text; they do not provide speech through these connections."
+                Input name=key value=$key type=password label="OpenAI API key" autoComplete=off placeholder="Leave blank to keep the saved key"
+                Row variant=form-row
+                  Input name=model value=$model label="OpenAI research & writing model"
+                  Input name=ttsModel value=$ttsModel label="Speech model"
+                Text variant=small "Without a voice key, manual production saves a reviewed script and waits for narration. Audio schedules require voices to be configured. Cloud API billing is separate from subscriptions."
+                Button intent=disconnect variant=text "Disconnect OpenAI"
+              Card variant=form
+                Heading level=2 "Direct X timelines · Optional"
+                Input name=xToken value=$xToken type=password label="X API bearer token" autoComplete=off placeholder="Leave blank to keep the saved token"
+                Text variant=small "Direct timeline access requires an X developer token. Feed-only mode does not check indexed posts; web search coverage remains incomplete."
+                Button intent=disconnectX variant=text "Disconnect X"
+              Card variant=form
+                Row gap=sm
+                  Button intent=saveProviders variant=primary disabled=$busy "Save connections"
+                  Button intent=testProvider variant=quiet disabled=$busy "Save & check writing connection"
+                Text variant=small "The connection check sends one short request to the selected writer. Cloud checks use API billing. Disconnecting a provider stops active production so it can be resumed with saved progress."
+            Card variant=source-note
+              Icon name=lock
+              Stack gap=sm
+                Heading level=3 "Your show. Your library."
+                Text "Episodes, scripts and settings are private to your Workspace account. Audio exports are uncompressed WAV. Background production needs your server to remain running."
+                Text variant=small "The editorial pass checks consistency with the research; it is not a guarantee that every source is correct."
+            Button intent=logout variant=quiet icon=logout "Sign out"
+          If condition=$showDetail
+            Button intent=library variant=text icon=arrow-left "Back to your library"
+            Row variant=page-heading
+              Stack gap=sm
+                Badge tone=$detailTone "$detailStatus"
+                Heading level=1 "$detailTitle"
+                Text variant=muted "$detailSummary"
+                Text variant=small "$detailMeta"
+            If condition=$detailReady
+              Card variant=player
+                Text variant=eyebrow "SETTLE IN. PRESS PLAY."
+                AudioPlayer src=$audioURL seek=$seek label=$detailTitle
+                Row gap=sm
+                  Link href=$downloadURL variant=quiet "Download WAV"
+                  Link href=$transcriptURL variant=quiet "Export transcript"
+                  Link href=$sourcesURL variant=quiet "Export sources"
+            Else
+              Card variant=form
+                Heading level=3 "$detailStage"
+                Text "$detailProgress% complete. Progress is saved on your server."
+                If condition=$detailError
+                  Alert tone=warning "$detailError"
+                If condition=$detailRunning
+                  Button intent=cancel payload=$detailId variant=quiet "Cancel production"
+                If condition=$detailRetryable
+                  Button intent=retry payload=$detailId variant=primary "Resume / regenerate"
+                If condition=$hasScript
+                  Row gap=sm
+                    Link href=$transcriptURL variant=quiet "Export transcript"
+                    Link href=$sourcesURL variant=quiet "Export sources"
+            If condition=$hasWarnings
+              Card variant=warnings
+                Heading level=3 "Research coverage notes"
+                For each=$warnings
+                  Text variant=small "$item.text"
+            If condition=$hasIssues
+              Card variant=warnings
+                Heading level=3 "The editor’s notes"
+                For each=$issues
+                  Text "$item.text"
+            Row variant=detail-layout
+              Stack gap=lg
+                Row variant=section-heading
+                  Heading level=2 "The conversation"
+                  Badge tone=blue "AI-GENERATED NARRATORS"
+                For each=$chapters
+                  Card variant=transcript
+                    Row variant=section-heading
+                      Heading level=3 "$item.title"
+                      If condition=$detailReady
+                        Button intent=seek payload=$item.start variant=text "$item.time ↗"
+                    Stack gap=md
+                      For each=$item.turns
+                        Stack gap=sm
+                          Text variant=speaker "$item.speaker"
+                          Text "$item.text"
+                          Text variant=small "$item.citations"
+              Stack gap=md
+                Heading level=2 "The receipts"
+                Text variant=small "Research cutoff · $cutoff"
+                For each=$detailSources
+                  Card variant=receipt
+                    Row gap=sm
+                      Badge tone=blue "$item.id"
+                      Text variant=eyebrow "$item.publisher"
+                    Link href=$item.url target=_blank "$item.title ↗"
+                    Text variant=small "$item.dateLabel"
+            If condition=$detailDeletable
+              Button intent=delete payload=$detailId variant=danger icon=trash "Delete episode"
+      Row variant=mobile-nav
+        Button intent=library variant=$libraryVariant icon=headphones "Listen"
+        Button intent=studio variant=$studioVariant icon=sparkles "Create"
+        Button intent=queue variant=$queueVariant icon=activity "Queue"
+        Button intent=sources variant=$sourcesVariant icon=radio "Sources"
+        Button intent=settings variant=$settingsVariant icon=settings "Settings"

@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "passed": true,
+  "checks": [
+    "legacy preview.1 settings and encrypted voice key prepared",
+    "protected app-only update to preview.2 preserves manager/accounts/identity",
+    "managed OIDC to AI Service relay uses app/account grant and active model",
+    "encrypted service connection survives restart and revoked grants fail closed",
+    "normal rollback restores preview.1 and legacy settings/voice credentials"
+  ],
+  "serviceRequests": 3,
+  "appSHA256": "680775e054a7c3e9a2a0e1460a5717fe20abafe25a5a9ca1a2f0ddecbaece2fa",
+  "appOnlyBundleSHA256": "8d3f84fca173a3d0564da0b063d8c51aba231386f1cae32fef4a7b60d7bfc913",
+  "installerSHA256": "5b6de3072f6d4ee52ef9c6acc899d597026241cbba664a687a64e6c8ff429b94",
+  "scope": "synthetic isolated NTFS normal app-only update/restart/recovery with loopback AI Service protocol fixture",
+  "realDeepSeek": false,
+  "ownerOllama": false,
+  "publicRelease": false,
+  "ownerInstallation": false
+}

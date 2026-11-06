@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "version": "0.1.0-preview.1",
+  "executableSHA256": "85ade4e23d804affb99ff2b9994f2f3be4fd1b07b4dd371291f291f3597defa4",
+  "apphost": "v0.3.0-preview.114 (published immutable dependency; no local replace)",
+  "unitChecks": 9,
+  "liveFeedCheck": true,
+  "nativeBrowserScenarios": 4,
+  "goVetPassed": true,
+  "productionDependencyAuditVulnerabilities": 0,
+  "paidSpeechVerified": false,
+  "credentialedXVerified": false,
+  "physicalPhoneVerified": false,
+  "publicRelease": false,
+  "ownerInstallation": false,
+  "masteringTemporaryFilesExcludedFromSnapshots": true
+}

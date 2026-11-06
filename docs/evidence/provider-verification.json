@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "version": "0.1.0-preview.2",
+  "passed": true,
+  "appSHA256": "680775e054a7c3e9a2a0e1460a5717fe20abafe25a5a9ca1a2f0ddecbaece2fa",
+  "appUnitChecks": 15,
+  "optionalLiveFeedCheck": "previously verified; not rerun for provider routing",
+  "nativeBrowserScenarios": 5,
+  "goVetPassed": true,
+  "productionDependencyAuditVulnerabilities": 0,
+  "managedAppUpdate": true,
+  "managedRestart": true,
+  "managedRollback": true,
+  "realDeepSeek": false,
+  "ownerOllama": false,
+  "publicRelease": false,
+  "ownerInstallation": false
+}

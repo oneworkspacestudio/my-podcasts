@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "passed": true,
+  "checks": [
+    "DeepSeek selection/key persistence without secret disclosure",
+    "AI Service native HTTP relay with app/account delegation",
+    "active model preserved",
+    "encrypted connection restart",
+    "320/390/768/1440 layouts",
+    "revoked credential error without secret leakage"
+  ],
+  "scope": "synthetic isolated native executable and loopback AI Service protocol fixture",
+  "realDeepSeek": false,
+  "ownerOllama": false,
+  "ownerInstallation": false,
+  "version": "0.1.0-preview.2",
+  "appSHA256": "680775e054a7c3e9a2a0e1460a5717fe20abafe25a5a9ca1a2f0ddecbaece2fa"
+}

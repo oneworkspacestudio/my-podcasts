@@ -1,0 +1,17 @@
+import React,{createElement as h,createContext,useContext,useEffect,useRef} from 'react';
+import {Headphones,Mic,AudioLines,Sparkles,Activity,Radio,Clock3,Settings,LogOut,Grid2X2,ArrowLeft,ArrowRight,Plus,Play,RefreshCw,ShieldCheck,LockKeyhole,Trash2,ChevronRight} from 'lucide-react';
+type P=Record<string,any>;
+export const Actions=createContext<{act:(name:string,payload?:unknown)=>void;change:(name:string,value:string|boolean)=>void}>({act:()=>{},change:()=>{}});
+const icons:Record<string,React.ElementType>={headphones:Headphones,mic:Mic,waveform:AudioLines,sparkles:Sparkles,activity:Activity,radio:Radio,clock:Clock3,settings:Settings,logout:LogOut,apps:Grid2X2,'arrow-left':ArrowLeft,'arrow-right':ArrowRight,plus:Plus,play:Play,refresh:RefreshCw,shield:ShieldCheck,lock:LockKeyhole,trash:Trash2,chevron:ChevronRight};
+const cls=(b:string,p:P)=>[b,p.variant&&b+'--'+p.variant,p.gap&&'gap-'+p.gap,p.tone&&'tone-'+p.tone].filter(Boolean).join(' ');
+const box=(tag:string,b:string)=>({children,...p}:P)=>h(tag,{className:cls(b,p),role:p.role},children);
+export const Page=box('div','page'),Row=box('div','row'),Stack=box('div','stack'),Section=box('section','section'),Card=box('section','card'),Grid=box('div','grid'),Text=box('p','text'),Badge=box('span','badge'),Alert=box('div','alert');
+export const Spacer=()=>h('div',{className:'spacer'}),Divider=()=>h('hr'),Image=(p:P)=>h('img',p);
+export const Heading=({children,level=2,...p}:P)=>h('h'+level,{className:cls('heading',p)},children);
+export const Icon=({name,...p}:P)=>h(icons[name]||AudioLines,{className:cls('icon',p),size:21,'aria-hidden':true,strokeWidth:1.7});
+export function Button({children,intent,payload,icon,onClick,...p}:P){const{act}=useContext(Actions);return h('button',{type:'button',className:cls('button',p),disabled:p.disabled,onClick:intent?()=>act(intent,payload):onClick},icon&&h(Icon,{name:icon}),children);}
+export function Link({children,...p}:P){return h('a',{className:cls('link',p),href:p.href,target:p.target,rel:p.target?'noopener noreferrer':undefined,'data-workspace-apps-trigger':p.variant==='apps'?'true':undefined},p.variant==='apps'&&h(Icon,{name:'apps'}),children);}
+export function Input({label,name,value,variant,...p}:P){const{change}=useContext(Actions);return h('label',{className:'field'},h('span',null,label),h(variant==='multiline'?'textarea':'input',{...p,id:name,name,value:value??'',rows:variant==='multiline'?4:undefined,onChange:(e:React.ChangeEvent<HTMLInputElement>)=>change(name,e.target.value)}));}
+export function Select({label,name,value,options=[]}:P){const{change}=useContext(Actions);return h('label',{className:'field'},h('span',null,label),h('select',{id:name,name,value,onChange:(e:React.ChangeEvent<HTMLSelectElement>)=>change(name,e.target.value)},options.map((o:P)=>h('option',{key:o.value,value:o.value},o.label))));}
+export function Checkbox({label,name,checked}:P){const{change}=useContext(Actions);return h('label',{className:'check'},h('input',{type:'checkbox',name,checked:!!checked,onChange:(e:React.ChangeEvent<HTMLInputElement>)=>change(name,e.target.checked)}),h('span',null,label));}
+export function AudioPlayer({src,seek,label}:P){const ref=useRef<HTMLAudioElement>(null);useEffect(()=>{if(ref.current&&seek?.at!==undefined){ref.current.currentTime=seek.at;void ref.current.play().catch(()=>{});}},[seek]);return h('audio',{ref,src,controls:true,preload:'metadata','aria-label':label,onLoadedMetadata:()=>{if(ref.current&&seek?.at)ref.current.currentTime=seek.at;}});}

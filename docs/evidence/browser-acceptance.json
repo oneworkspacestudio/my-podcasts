@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "passed": true,
+  "scope": "exact native executable with synthetic isolated NTFS accounts; synthetic tone fixture",
+  "checks": [
+    "responsive 320/390/768/1440",
+    "settings and sources persistence",
+    "missing API key and scheduling prerequisites",
+    "CSRF and owner writes",
+    "account isolation",
+    "authenticated WAV range playback",
+    "sample-derived chapter seeking",
+    "transcript and source exports",
+    "native restart",
+    "logout"
+  ],
+  "realPaidGeneration": false,
+  "credentialedX": false,
+  "physicalPhone": false,
+  "ownerInstallation": false,
+  "version": "0.1.0-preview.2",
+  "appSHA256": "680775e054a7c3e9a2a0e1460a5717fe20abafe25a5a9ca1a2f0ddecbaece2fa"
+}

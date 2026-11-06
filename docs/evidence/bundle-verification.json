@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "passed": true,
+  "apps": 43,
+  "packages": 918,
+  "podcastsPackages": 48,
+  "installerSHA256": "5b6de3072f6d4ee52ef9c6acc899d597026241cbba664a687a64e6c8ff429b94",
+  "bundleSHA256": "ed4839df2f277b599dd00333d83793462e2097b74b8adf5d16f53d37c485147f",
+  "appSHA256": "85ade4e23d804affb99ff2b9994f2f3be4fd1b07b4dd371291f291f3597defa4",
+  "candidate": true,
+  "baselineComparison": {
+    "baselineVersion": "0.3.0-preview.121",
+    "retainedAppCount": 42,
+    "changedPriorAppContracts": [
+      "websearch"
+    ],
+    "changedPriorPackages": [
+      "manager"
+    ],
+    "changedPriorAppFields": {
+      "websearch": [
+        "source"
+      ]
+    },
+    "allPriorLaunchContractsRetained": true,
+    "allNonManagerPackageBytesRetained": true
+  }
+}
