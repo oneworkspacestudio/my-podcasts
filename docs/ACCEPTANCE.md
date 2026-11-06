@@ -1,5 +1,39 @@
 # Acceptance
 
+## Current public delivery: preview.3 / Workspace122
+
+Published My Podcasts0.1.0-preview.3 from18ac14e and Workspace0.3.0-preview.122
+from37f6093. Public immutable releases contain12 and939 assets respectively;
+the complete43-app/918-package suite bundles Podcasts2, with Podcasts3 promoted
+through the supported independent app channel. The mandatory suite publisher
+verified signed Android0.1.0-preview.19. GitHub Actions remain disabled.
+
+Installed on the primary PC through the normal protected updater: manager122,
+Podcasts3,48 verified Podcasts payloads and852 preserved unselected payloads.
+Existing identities, credentials, Search/AI Service settings and both model files
+were preserved. Native/public anonymous private APIs deny access, served UI and
+branding match the tested release, and startup reports no remaining failures.
+Fifteen app Go checks/vet, five native browser scenarios, seven full installer
+lifecycle scenarios, suite tests/vet and metadata-recovery regression passed.
+
+A fresh Workspace-wide metadata recovery point was created by the normal
+Podcasts2-to3 update and verified using raw file checksums, including9 database,
+WAL and SHM files. An earlier audit had changed two auxiliary SHM files in the
+previous recovery copy; its database/WAL files remained intact. That older copy
+is retained with a verification warning. Never query frozen recovery databases;
+inspect a separate protected copy when SQL inspection is required.
+
+Sanitized final receipt: `docs/evidence/public-delivery.json`. Provider keys must
+be configured in the owner Connections UI; AI Service uses an owner-issued local
+grant for podcasts and leaves the resident Ollama model under service control.
+OpenAI speech configuration is separate and required for audio. Real paid
+research/narration quality, owner Ollama inference, an authenticated owner-browser
+session, physical phone, reboot and other PCs are not claimed. Synthetic fixtures
+were used for tests. Automatic approval review blocked deletion of older stopped
+test roots as "blocked by policy"; those task files remain retained.
+
+## Historical acceptance checkpoints (superseded where noted above)
+
 Preview.3 maintenance updates the Workspace provider description and adds safe
 SQLite recovery-verification guidance. Research, narration and storage formats
 remain compatible with preview.2. Release and protected delivery checks are

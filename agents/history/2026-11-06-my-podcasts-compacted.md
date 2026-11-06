@@ -166,3 +166,52 @@ before applying. Keep original/public assets immutable. A fresh normal verified
 recovery point is required before final completion. Owner app/manager are healthy;
 no paid generation or owner model inference was used as a test. Fixture cleanup
 was rejected by automatic approval review; old synthetic roots remain stopped.
+
+
+## Final public delivery and primary installation (supersedes pending checkpoints)
+User authorization: publish and install. Completed immutable app2 release from
+7a6d1c6, suite122 from37f6093 (939 assets;43 apps/918 packages), signed Android19,
+then maintenance app3 from18ac14e (12 assets). Channel/future component pin3 is
+suite575b6b1. Actions disabled. No existing public assets/tags were replaced.
+Suite122 bundles2; supported independent app update installs3. App3 executable
+SHA256305fc00fdcaa98a071797b53acd52ed7f354f68c9db5f1ef919f332ce8d38582;
+public ZIP ab4a0c64b1fb7cf42401e0eac3e961727b25d67d1bf9e05f6df431db3d864061.
+Public release sizes/digests and anonymous app package/channel passed; normal
+installer downloaded/verified the full public suite bundle. Setup EXE public
+access/MZ and GitHub digest verified, not a full anonymous EXE download claim.
+
+Primary installed via normal protected workspace,podcasts then online podcasts
+updates: manager122/Podcasts3. All48app payloads,852unselected payloads, manager,
+served UI/branding, native/public private-API anonymous denial, OIDC configuration,
+existing owner identities/credentials, Search and AI Service settings/clients,
+storage locations and2immutable model hashes verified. Startup has no remaining
+failures;42 app processes reported (catalog count is43). No owner job, grant,
+provider/model activation or paid inference used as a test. Real provider output
+quality, authenticated owner browser, physical phone/reboot/other PCs unclaimed.
+
+Recovery incident is retained in prior section. SQL inspection of the initial
+recovery changed two SHM caches despite readonly DB opening; main DB/WAL bytes
+stayed intact. In-memory reconstruction attempts wrote nothing. A Maps metadata
+proposal was refused before mutation. Original unsafe audit/checkpoint helpers
+are disabled. Published app3's real provider-description maintenance uses the
+normal global metadata boundary (synthetic regression passed), creating fresh
+full recovery baseline manager122/Podcasts2. Updater verified it; subsequent raw
+hash-only verification confirmed its manifest and all9 DB/WAL/SHM files without
+opening any snapshot database. Earlier affected copy remains with integrity
+warning; do not claim it was repaired. Never query original frozen SQL files.
+
+Final sanitized delivery receipt is committed under docs/evidence. Detailed
+local receipts: I:/Projects/tooling/my-podcasts-publish-20261106, notably
+primary-app3-delivery.json, primary-app3-served-assets.json and
+final-recovery-verification.json. Do not rerun obsolete finalize122.py or disabled
+SQL audit helpers. Exact suite/application tests, vet, native browser scenarios
+and metadata recovery test passed; final documentation edits need no rerun.
+
+Cleanup removal was twice rejected by automatic approval review (blocked by
+policy), after process/reparse/boundary checks. No alternate deletion attempted.
+Old stopped synthetic roots remain; synthetic-cleanup.json records this. Do not
+repeat deletion through another mechanism. No owner files were cleanup targets.
+No further implementation or publication needed for this request. Configure
+DeepSeek or owner-issued AI Service connection in UI and separate OpenAI voices
+before real generation. Future suite release must use mandatory signed Android
+entry point; independent compatible app releases retain their normal workflow.
