@@ -1,5 +1,10 @@
 # Acceptance
 
+Preview.3 maintenance updates the Workspace provider description and adds safe
+SQLite recovery-verification guidance. Research, narration and storage formats
+remain compatible with preview.2. Release and protected delivery checks are
+recorded in the evidence and compact handoff.
+
 Current source:0.1.0-preview.2. Adds DeepSeek and existing
 AI Service/Ollama writing/research connections, separate voice configuration and
 a durable script-ready waiting state. Provider evidence is recorded separately

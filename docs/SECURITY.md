@@ -51,3 +51,13 @@ The waiting state is durable; continuing its narration reuses saved inference.
 Scheduled audio production still requires text/research and speech connections.
 No automatic cloud fallback occurs when local inference fails or a grant is
 revoked. Feed-only mode does not pretend to search indexed social posts.
+
+
+## Recovery verification
+Verify original recovery copies using their recorded file checksums. Do not open
+SQLite databases inside a verified recovery copy, even with `mode=ro`: SQLite
+may rebuild or update the accompanying `-shm` cache. If a database needs inspection,
+first copy the database and matching WAL/SHM files into a separate protected NTFS
+audit directory and query those copies. Preserve the original recovery files and
+manifest unchanged. Database/WAL integrity and transient cache integrity must be
+checked separately; a successful read-only query does not prove immutability.

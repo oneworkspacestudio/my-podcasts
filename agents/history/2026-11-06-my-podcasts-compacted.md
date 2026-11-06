@@ -146,3 +146,23 @@ on the primary PC. Earlier unpublished/no-authorization notes describe past work
 Reconciled suite origin/main5985ae6: only delivery/channel history and Commute2 pin
 advanced since the integration base. Preserve those changes. No owner generation
 or model activation is authorized as a test fixture.
+
+
+## Preview.3 recovery maintenance in progress
+User-authorized preview2/Workspace122 publication completed (12/939 assets, signed
+Android19 and public channel). Primary122/Podcasts2 installed normally;48app files,
+850retained canonical payloads, identity/credentials/settings/models and served
+assets pass verification. Audit scripts incorrectly compared JSON field order
+and classified the Workspace-owned release notice as unselected; corrected.
+The subsequent readonly SQLite audit altered two SHM caches in the new update
+recovery. Main DB and WAL hashes remain original; no owner database table was
+changed. Exact-cache reconstruction was attempted in memory only, with no writes.
+Do not open recovery SQLite files again. A metadata-only Maps addition is not
+available through the updater and was refused before any mutation.
+Preparing a small public Podcasts3 maintenance release with clearer provider
+description and safe recovery-audit guidance. Its reviewed descriptor change
+uses the normal global metadata recovery boundary; native tests must verify this
+before applying. Keep original/public assets immutable. A fresh normal verified
+recovery point is required before final completion. Owner app/manager are healthy;
+no paid generation or owner model inference was used as a test. Fixture cleanup
+was rejected by automatic approval review; old synthetic roots remain stopped.

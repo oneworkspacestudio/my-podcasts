@@ -12,7 +12,5 @@
   "scope": "synthetic isolated native executable and loopback AI Service protocol fixture",
   "realDeepSeek": false,
   "ownerOllama": false,
-  "ownerInstallation": false,
-  "version": "0.1.0-preview.2",
-  "appSHA256": "680775e054a7c3e9a2a0e1460a5717fe20abafe25a5a9ca1a2f0ddecbaece2fa"
+  "ownerInstallation": false
 }
