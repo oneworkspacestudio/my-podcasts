@@ -27,3 +27,43 @@ test('DeepSeek and AI Service controls, real server relay, persistence and revoc
  const me=await(await page.request.get('/api/me')).json();await page.request.put('/api/providers',{headers:{Origin:origin,'X-CSRF-Token':me.csrf},data:{textProvider:'openai',clearService:true,clearDeepSeek:true}});await writeFile('docs/evidence/provider-browser-acceptance.json',JSON.stringify({schema:1,passed:true,checks:['DeepSeek selection/key persistence without secret disclosure','AI Service native HTTP relay with app/account delegation','active model preserved','encrypted connection restart','320/390/768/1440 layouts','revoked credential error without secret leakage'],scope:'synthetic isolated native executable and loopback AI Service protocol fixture',realDeepSeek:false,ownerOllama:false,ownerInstallation:false},null,2));
  }finally{server.closeAllConnections();await new Promise<void>(r=>server.close(()=>r()));}
 });
+
+test('Disconnect removes only the selected credential despite invalid unsaved fields', async ({page}) => {
+ const token = 'synthetic-ai-service-credential-' + randomUUID();
+ await login(page);
+ await page.setViewportSize({width:1440,height:1000});
+ const me = await (await page.request.get('/api/me')).json();
+ const result = await page.request.put('/api/providers', {
+  headers: {Origin:origin,'X-CSRF-Token':me.csrf},
+  data: {textProvider:'aiservice',key:'synthetic-openai',deepSeekKey:'synthetic-deepseek',serviceURL:'http://127.0.0.1:9042',serviceToken:token,xToken:'synthetic-x'},
+ });
+ expect(result.status()).toBe(200);
+ await page.reload();
+ await page.getByRole('button',{name:'Connections',exact:true}).click();
+ await page.getByLabel('AI Service URL on this server').fill('invalid unsaved address');
+ const connections = [
+  ['AI Service','serviceConfigured'],
+  ['DeepSeek','deepSeekConfigured'],
+  ['OpenAI','connected'],
+  ['X','xConnected'],
+ ];
+ for (const [index, [provider, flag]] of connections.entries()) {
+  const button = page.getByRole('button',{name:'Disconnect '+provider,exact:true});
+  await button.click();
+  await expect(page.getByRole('status')).toContainText(provider+' disconnected.');
+  await expect(button).toHaveCount(0);
+  const state = await (await page.request.get('/api/state')).json();
+  expect(state.provider[flag]).toBe(false);
+  expect(state.provider.textProvider).toBe('aiservice');
+  expect(state.provider.serviceURL).toBe('http://127.0.0.1:9042');
+  for (const [, untouched] of connections.slice(index+1)) {
+   expect(state.provider[untouched]).toBe(true);
+  }
+ }
+ await stop();
+ await start();
+ await page.context().clearCookies();
+ await login(page);
+ const state = await (await page.request.get('/api/state')).json();
+ for (const [, flag] of connections) expect(state.provider[flag]).toBe(false);
+});

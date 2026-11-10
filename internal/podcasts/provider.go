@@ -21,6 +21,8 @@ func (a *App) postTo(ctx context.Context, base, key, path string, body any, max 
 	client := *a.client
 	if local {
 		client.Timeout = 21 * time.Minute
+	} else if path == "/responses" {
+		client.Timeout = 5 * time.Minute
 	}
 	b, err := json.Marshal(body)
 	if err != nil {
@@ -68,6 +70,9 @@ func (a *App) postTo(ctx context.Context, base, key, path string, body any, max 
 		out, err := io.ReadAll(io.LimitReader(res.Body, max+1))
 		res.Body.Close()
 		if err != nil {
+			if ctx.Err() != nil {
+				return nil, ctx.Err()
+			}
 			return nil, errors.New("AI response download was interrupted")
 		}
 		if int64(len(out)) > max {
@@ -77,18 +82,42 @@ func (a *App) postTo(ctx context.Context, base, key, path string, body any, max 
 	}
 	return nil, errors.New("AI provider is temporarily unavailable; resume later")
 }
-func (a *App) respond(ctx context.Context, p providers, body any) (string, []Source, error) {
-	b, e := a.post(ctx, p, "/responses", body, 5<<20)
-	if e != nil {
-		return "", nil, e
+
+var (
+	errOutputLimit = errors.New("The AI provider reached its output limit before finishing")
+	errNoOutput    = errors.New("The AI provider completed without returning text")
+	errIncomplete  = errors.New("The AI provider stopped before returning a complete response")
+)
+
+func (a *App) respond(ctx context.Context, p providers, body map[string]any) (string, []Source, error) {
+	return a.responses(ctx, a.apiBase, p.Key, body)
+}
+
+func (a *App) responses(ctx context.Context, base, key string, body map[string]any) (string, []Source, error) {
+	budget, _ := body["max_output_tokens"].(int)
+	for {
+		b, err := a.postTo(ctx, base, key, "/responses", body, 5<<20, nil, false)
+		if err != nil {
+			return "", nil, err
+		}
+		text, sources, err := parseResponse(b)
+		if !errors.Is(err, errOutputLimit) || body["max_output_tokens"] != budget || budget <= 0 || budget >= 48000 {
+			return text, sources, err
+		}
+		// Reasoning and the visible answer share the same output allowance.
+		// Retry a token-limited response once, with a bounded larger allowance.
+		body["max_output_tokens"] = min(max(budget*2, 2048), 48000)
 	}
-	return parseResponse(b)
 }
 func parseResponse(b []byte) (string, []Source, error) {
 	var res struct {
-		Status string `json:"status"`
+		Status     string `json:"status"`
+		Incomplete struct {
+			Reason string `json:"reason"`
+		} `json:"incomplete_details"`
 		Output []struct {
 			Type   string `json:"type"`
+			Phase  string `json:"phase"`
 			Action struct {
 				Sources []struct {
 					URL   string `json:"url"`
@@ -106,8 +135,21 @@ func parseResponse(b []byte) (string, []Source, error) {
 			} `json:"content"`
 		} `json:"output"`
 	}
-	if json.Unmarshal(b, &res) != nil || res.Status != "completed" {
-		return "", nil, errors.New("AI response was incomplete; retry with a supported model")
+	if json.Unmarshal(b, &res) != nil || res.Status == "" {
+		return "", nil, errors.New("The AI provider returned an unreadable response")
+	}
+	if res.Status == "incomplete" {
+		switch res.Incomplete.Reason {
+		case "max_output_tokens":
+			return "", nil, errOutputLimit
+		case "content_filter":
+			return "", nil, errors.New("The AI provider filtered the response. Try adjusting the episode focus")
+		default:
+			return "", nil, errIncomplete
+		}
+	}
+	if res.Status != "completed" {
+		return "", nil, errors.New("The AI provider did not complete the request. Resume to try again")
 	}
 	text := ""
 	ss := []Source{}
@@ -122,7 +164,10 @@ func parseResponse(b []byte) (string, []Source, error) {
 			add(s.URL, s.Title)
 		}
 		for _, c := range o.Content {
-			if c.Type == "output_text" {
+			if c.Type == "refusal" {
+				return "", nil, errors.New("The AI provider declined this request. Try adjusting the episode focus")
+			}
+			if c.Type == "output_text" && o.Phase != "commentary" {
 				text += c.Text
 			}
 			for _, a := range c.Annotations {
@@ -154,6 +199,9 @@ func parseResponse(b []byte) (string, []Source, error) {
 		if u.Hostname() == "x.com" || u.Hostname() == "twitter.com" || u.Hostname() == "www.x.com" {
 			unique[i].Kind = "social"
 		}
+	}
+	if strings.TrimSpace(text) == "" {
+		return "", nil, errNoOutput
 	}
 	return text, unique, nil
 }

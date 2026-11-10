@@ -115,15 +115,11 @@ func (a *App) text(ctx context.Context, p providers, prompt string, schema any, 
 	case "aiservice":
 		return a.serviceText(ctx, p, prompt, schema, max)
 	case "deepseek":
-		body := map[string]any{"model": p.DeepSeekModel, "input": prompt, "max_output_tokens": max}
+		body := map[string]any{"model": p.DeepSeekModel, "input": prompt, "max_output_tokens": max, "reasoning": map[string]string{"effort": "none"}}
 		if schema != nil {
 			body["text"] = map[string]any{"format": map[string]any{"type": "json_schema", "name": "podcast_document", "strict": true, "schema": schema}}
 		}
-		b, e := a.postTo(ctx, "https://api.deepseek.com", p.DeepSeekKey, "/responses", body, 5<<20, nil, false)
-		if e != nil {
-			return "", e
-		}
-		out, _, e := parseResponse(b)
+		out, _, e := a.responses(ctx, "https://api.deepseek.com", p.DeepSeekKey, body)
 		return out, e
 	default:
 		body := map[string]any{"model": p.Model, "input": prompt, "max_output_tokens": max}
@@ -171,8 +167,14 @@ func (a *App) serviceText(ctx context.Context, p providers, prompt string, schem
 			Content string `json:"content"`
 		} `json:"message"`
 	}
-	if json.Unmarshal(b, &response) != nil || !response.Done || response.Reason == "length" || strings.TrimSpace(response.Message.Content) == "" {
+	if json.Unmarshal(b, &response) != nil || !response.Done {
 		return "", errors.New("AI Service returned incomplete output. Check its active model and context limits")
+	}
+	if response.Reason == "length" {
+		return "", fmt.Errorf("AI Service: %w. Try a shorter episode or a model with a larger context", errOutputLimit)
+	}
+	if strings.TrimSpace(response.Message.Content) == "" {
+		return "", fmt.Errorf("AI Service: %w. Check its active model", errNoOutput)
 	}
 	return response.Message.Content, nil
 }
@@ -275,10 +277,7 @@ func (a *App) testConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := context.WithValue(r.Context(), generationIdentity{}, apphost.Current(r).User.ID)
-	answer, e := a.text(ctx, p, "Reply briefly with READY. This is a connection check, not a news or podcast request.", nil, 64)
-	if e == nil && strings.TrimSpace(answer) == "" {
-		e = errors.New("The writing provider returned an empty connection-check response")
-	}
+	_, e := a.text(ctx, p, "Reply briefly with READY. This is a connection check, not a news or podcast request.", nil, 64)
 	if e != nil {
 		apphost.Problem(w, 502, e.Error())
 		return

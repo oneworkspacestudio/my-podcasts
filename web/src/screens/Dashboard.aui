@@ -151,11 +151,12 @@ Page Dashboard
                 Card variant=form
                   Row gap=sm
                     Badge tone=blue "03"
-                    Heading level=2 "A new episode, on your time"
+                    Heading level=2 "Automatic episodes"
                   Row variant=form-row
                     Select name=schedule value=$schedule options=$scheduleOptions label="Background production"
                     Input name=at value=$at type=time label="Production starts at (UTC)"
-                  Text variant=muted "Your server keeps working when this tab is closed. Weekly episodes start on Mondays. Catch-up runs once after downtime."
+                  Text variant=muted "$nextRunLabel"
+                  Text variant=small "Choose daily or weekly and save show settings. Your server researches and records while you’re away, then adds the episode to your library."
                   Text variant=small "Up to 3 productions per 24 hours and 50 saved episodes per account. AI research and speech use your connected API billing."
               Stack variant=studio-aside gap=md
                 Card variant=show-preview
@@ -269,7 +270,8 @@ Page Dashboard
                 Text variant=muted "Current web reporting and public posts through DeepSeek search, with structured scripts and an editorial pass. You can also use DeepSeek search with your local writer."
                 Input name=deepSeekKey value=$deepSeekKey type=password label="DeepSeek API key" autoComplete=off placeholder="Leave blank to keep the saved key"
                 Input name=deepSeekModel value=$deepSeekModel label="DeepSeek writing model"
-                Button intent=disconnectDeepSeek variant=text "Disconnect DeepSeek"
+                If condition=$deepSeekConnected
+                  Button intent=disconnectDeepSeek variant=text disabled=$busy "Disconnect DeepSeek"
               Card variant=form
                 Row variant=section-heading
                   Heading level=2 "AI Service · Your local Ollama"
@@ -279,7 +281,8 @@ Page Dashboard
                 Input name=serviceToken value=$serviceToken type=password label="AI Service app credential" autoComplete=off placeholder="Leave blank to keep the saved credential"
                 Text variant=small "In AI Service, issue a local server app credential with app ID podcasts. Paste it here. This is a server connection; the URL is relative to the computer running My Podcasts."
                 Text variant=small "The service must be enabled with an active model. Automatic research uses the selected dated feeds and connected X posts; choose DeepSeek search for wider web coverage."
-                Button intent=disconnectService variant=text "Disconnect AI Service"
+                If condition=$serviceConnected
+                  Button intent=disconnectService variant=text disabled=$busy "Disconnect AI Service"
               Card variant=form
                 Row variant=section-heading
                   Heading level=2 "OpenAI · Voices & optional writing"
@@ -290,16 +293,22 @@ Page Dashboard
                   Input name=model value=$model label="OpenAI research & writing model"
                   Input name=ttsModel value=$ttsModel label="Speech model"
                 Text variant=small "Without a voice key, manual production saves a reviewed script and waits for narration. Audio schedules require voices to be configured. Cloud API billing is separate from subscriptions."
-                Button intent=disconnect variant=text "Disconnect OpenAI"
+                If condition=$openAIConnected
+                  Button intent=disconnect variant=text disabled=$busy "Disconnect OpenAI"
               Card variant=form
-                Heading level=2 "Direct X timelines · Optional"
+                Row variant=section-heading
+                  Heading level=2 "Direct X timelines · Optional"
+                  Badge tone=blue "$xLabel"
                 Input name=xToken value=$xToken type=password label="X API bearer token" autoComplete=off placeholder="Leave blank to keep the saved token"
                 Text variant=small "Direct timeline access requires an X developer token. Feed-only mode does not check indexed posts; web search coverage remains incomplete."
-                Button intent=disconnectX variant=text "Disconnect X"
+                If condition=$xConnected
+                  Button intent=disconnectX variant=text disabled=$busy "Disconnect X"
               Card variant=form
                 Row gap=sm
                   Button intent=saveProviders variant=primary disabled=$busy "Save connections"
-                  Button intent=testProvider variant=quiet disabled=$busy "Save & check writing connection"
+                  Button intent=testProvider variant=quiet disabled=$busyOrChecking "Save & check writing connection"
+                If condition=$checking
+                  Text variant=small "Checking the writing connection…"
                 Text variant=small "The connection check sends one short request to the selected writer. Cloud checks use API billing. Disconnecting a provider stops active production so it can be resumed with saved progress."
             Card variant=source-note
               Icon name=lock

@@ -27,11 +27,11 @@ func (a *App) deepSeekSearch(ctx context.Context, p providers, e *Episode, since
 		}
 		b, err := a.postTo(ctx, "https://api.deepseek.com", p.DeepSeekKey, "/v1/tools/search", map[string]any{"query": query, "count": 5, "need_content": true}, 5<<20, nil, false)
 		if err != nil {
-			return nil, err
+			return out, err
 		}
 		ss, err := parseDeepSeekSearch(b, since, cutoff)
 		if err != nil {
-			return nil, err
+			return out, err
 		}
 		out = append(out, ss...)
 	}

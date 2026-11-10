@@ -137,7 +137,12 @@ func (a *App) setProviders(w http.ResponseWriter, r *http.Request) {
 	if !apphost.Decode(w, r, &in) {
 		return
 	}
-	p := a.provider()
+	// Serialize the entire read/modify/write so saving another connection
+	// cannot restore a credential that was just disconnected.
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	previous := a.p
+	p := previous
 	if in.TextProvider != "" {
 		if in.TextProvider != "openai" && in.TextProvider != "deepseek" && in.TextProvider != "aiservice" {
 			apphost.Problem(w, 400, "Choose OpenAI, DeepSeek or AI Service")
@@ -231,17 +236,20 @@ func (a *App) setProviders(w http.ResponseWriter, r *http.Request) {
 		a.h.DBError(w, e)
 		return
 	}
-	a.mu.Lock()
 	a.p = p
-	if in.ClearKey || in.ClearDeepSeek || in.ClearService {
+	if revoked(previous.Key, p.Key) || revoked(previous.DeepSeekKey, p.DeepSeekKey) ||
+		revoked(previous.ServiceToken, p.ServiceToken) || revoked(previous.XToken, p.XToken) ||
+		(previous.ServiceToken != "" && previous.ServiceURL != p.ServiceURL) {
 		for _, cancel := range a.active {
 			cancel()
 		}
 	}
-	a.mu.Unlock()
 	a.h.Audit(apphost.Current(r).User.ID, "providers-updated", "podcasts")
-	apphost.JSON(w, 200, map[string]bool{"saved": true})
+	apphost.JSON(w, 200, map[string]any{"saved": true, "provider": providerInfo(p)})
 	a.signal()
+}
+func revoked(previous, current string) bool {
+	return previous != "" && previous != current
 }
 func (a *App) loadSettings(user string) (Settings, error) {
 	s := Defaults()
@@ -265,14 +273,32 @@ func (a *App) settings(w http.ResponseWriter, r *http.Request) {
 		apphost.Problem(w, 400, e.Error())
 		return
 	}
-	if s.Schedule != "off" {
-		if err := a.provider().productionError(true); err != nil {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	user := apphost.Current(r).User.ID
+	var saved Settings
+	var previous string
+	var due int64
+	err := a.h.DB.QueryRow("SELECT body,next_run FROM podcast_settings WHERE user_id=?", user).Scan(&previous, &due)
+	if err == nil {
+		err = json.Unmarshal([]byte(previous), &saved)
+	}
+	if err != nil && err != sql.ErrNoRows {
+		a.h.DBError(w, err)
+		return
+	}
+	changedSchedule := saved.Schedule != s.Schedule || saved.At != s.At
+	if s.Schedule == "off" {
+		due = 0
+	} else if changedSchedule || due <= 0 {
+		if err := a.p.productionError(true); err != nil {
 			apphost.Problem(w, 409, err.Error())
 			return
 		}
+		due = nextRun(s, time.Now())
 	}
 	raw, _ := json.Marshal(s)
-	_, e := a.h.DB.Exec("INSERT INTO podcast_settings VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET body=excluded.body,next_run=excluded.next_run", apphost.Current(r).User.ID, string(raw), nextRun(s, time.Now()))
+	_, e := a.h.DB.Exec("INSERT INTO podcast_settings VALUES(?,?,?) ON CONFLICT(user_id) DO UPDATE SET body=excluded.body,next_run=excluded.next_run", user, string(raw), due)
 	if e != nil {
 		a.h.DBError(w, e)
 		return
@@ -316,7 +342,7 @@ func (a *App) state(w http.ResponseWriter, r *http.Request) {
 	p := a.provider()
 	var next int64
 	_ = a.h.DB.QueryRow("SELECT next_run FROM podcast_settings WHERE user_id=?", u.ID).Scan(&next)
-	apphost.JSON(w, 200, map[string]any{"settings": s, "episodes": list, "people": People, "feeds": Feeds, "nextRun": next, "provider": providerInfo(p), "limits": map[string]int{"daily": 3, "queued": 3, "library": 50}})
+	apphost.JSON(w, 200, map[string]any{"settings": s, "episodes": list, "people": People, "feeds": Feeds, "nextRun": next, "schedulePaused": next > 0 && p.productionError(true) != nil, "provider": providerInfo(p), "limits": map[string]int{"daily": 3, "queued": 3, "library": 50}})
 }
 func (a *App) save(e *Episode) error {
 	e.Updated = time.Now().Unix()
@@ -346,29 +372,40 @@ func (a *App) getEpisode(w http.ResponseWriter, r *http.Request) {
 	apphost.JSON(w, 200, e)
 }
 func (a *App) create(user string, s Settings) (Episode, error) {
-	e := Episode{ID: apphost.ID(), Created: time.Now().Unix(), Status: "queued", Stage: "Waiting for the studio", Settings: s, Sources: []Source{}, Warnings: []string{}}
-	e.Updated = e.Created
 	tx, err := a.h.DB.Begin()
+	if err != nil {
+		return Episode{}, err
+	}
+	defer tx.Rollback()
+	e, err := createEpisode(tx, user, s, time.Now())
 	if err != nil {
 		return e, err
 	}
-	defer tx.Rollback()
+	return e, tx.Commit()
+}
+
+var errAccountLimit = errors.New("Studio limit reached: up to 3 productions per 24 hours, 3 queued and 50 saved episodes")
+var errQueueFull = errors.New("The studio queue is full. Please try again later")
+
+func createEpisode(tx *sql.Tx, user string, s Settings, now time.Time) (Episode, error) {
+	e := Episode{ID: apphost.ID(), Created: now.Unix(), Updated: now.Unix(), Status: "queued", Stage: "Waiting for the studio", Settings: s, Sources: []Source{}, Warnings: []string{}}
+	var err error
 	var pending, total, daily int
 	if err = tx.QueryRow("SELECT count(*),sum(CASE WHEN status IN ('queued','running') THEN 1 ELSE 0 END) FROM podcast_episodes WHERE user_id=?", user).Scan(&total, nullableInt(&pending)); err != nil {
 		return e, err
 	}
-	if err = tx.QueryRow("SELECT count(*) FROM podcast_productions WHERE user_id=? AND started>=?", user, time.Now().Add(-24*time.Hour).Unix()).Scan(&daily); err != nil {
+	if err = tx.QueryRow("SELECT count(*) FROM podcast_productions WHERE user_id=? AND started>=?", user, now.Add(-24*time.Hour).Unix()).Scan(&daily); err != nil {
 		return e, err
 	}
 	if total >= 50 || pending >= 3 || daily >= 3 {
-		return e, errors.New("Studio limit reached: up to 3 productions per 24 hours, 3 queued and 50 saved episodes")
+		return e, errAccountLimit
 	}
 	var global int
 	if err = tx.QueryRow("SELECT count(*) FROM podcast_episodes WHERE status IN ('queued','running')").Scan(&global); err != nil {
 		return e, err
 	}
 	if global >= 24 {
-		return e, errors.New("The studio queue is full. Please try again later")
+		return e, errQueueFull
 	}
 	raw, _ := json.Marshal(e)
 	if _, err = tx.Exec("INSERT INTO podcast_episodes VALUES(?,?,?,?,?,?)", e.ID, user, e.Created, e.Updated, e.Status, string(raw)); err != nil {
@@ -377,10 +414,10 @@ func (a *App) create(user string, s Settings) (Episode, error) {
 	if _, err = tx.Exec("INSERT INTO podcast_productions VALUES(?,?)", user, e.Created); err != nil {
 		return e, err
 	}
-	if _, err = tx.Exec("DELETE FROM podcast_productions WHERE started<?", time.Now().Add(-48*time.Hour).Unix()); err != nil {
+	if _, err = tx.Exec("DELETE FROM podcast_productions WHERE started<?", now.Add(-48*time.Hour).Unix()); err != nil {
 		return e, err
 	}
-	return e, tx.Commit()
+	return e, nil
 }
 
 type intScanner struct{ p *int }

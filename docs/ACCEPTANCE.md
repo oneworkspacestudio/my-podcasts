@@ -1,6 +1,16 @@
 # Acceptance
 
-## Current public delivery: preview.3 / Workspace122
+## Preview.4 production repair
+
+The worker recovers from incomplete web research using verified dated evidence
+when available. Automatic runs stay due while another episode is recording.
+Connection removal persists independently of unsaved model and address fields.
+The regression test starts a manual episode through the authenticated API,
+signs out during narration, and checks that both the manual and scheduled
+episodes reach the library with playable WAV files. It uses synthetic
+responses and speech bytes.
+
+## Preview.3 public delivery with Workspace122
 
 Published My Podcasts0.1.0-preview.3 from18ac14e and Workspace0.3.0-preview.122
 from37f6093. Public immutable releases contain12 and939 assets respectively;

@@ -215,3 +215,28 @@ No further implementation or publication needed for this request. Configure
 DeepSeek or owner-issued AI Service connection in UI and separate OpenAI voices
 before real generation. Future suite release must use mandatory signed Android
 entry point; independent compatible app releases retain their normal workflow.
+
+## 2026-11-10 production and connection repair
+
+The reported 8% interruption comes from the research stage. Preview.3 collapsed
+several Responses API outcomes into one error, so the screenshot does not
+identify the provider or its exact reason. Preview.4 distinguishes token limits,
+incomplete output, filtering and refusals. It retries a token limit once and
+falls back to retrieved dated evidence when research cannot produce a dossier.
+Coverage is recorded per episode. DeepSeek text requests use non-thinking mode
+so hidden reasoning does not consume the visible-output allowance.
+
+Disconnect sends a single clear flag and leaves unrelated drafts and credentials
+alone. Provider updates serialize persistence and cancel active work using
+revoked credentials. Connection checks can be interrupted by a disconnect.
+The server preserves due automatic runs when settings are edited, connections
+are paused or capacity is exhausted. Enqueuing and advancing the schedule share
+one SQLite transaction. Cadence stays opt-in and audio requires OpenAI speech.
+
+The regression drives the authenticated enqueue path, reproduces token-limited
+research, signs out during server narration, and verifies the manual and due
+scheduled WAVs after a fresh login. Use synthetic accounts and provider responses
+for acceptance. Release uses the unchanged minimum Workspace122 and
+native-podcasts-v1 contract and the normal independent update channel.
+The user authorized managed release and channel promotion as standing policy.
+An update to the user's installation requires an installation request.

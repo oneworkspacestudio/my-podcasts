@@ -209,13 +209,14 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                         <Card variant="form">
                           <Row gap="sm">
                             <Badge tone="blue">03</Badge>
-                            <Heading level={2}>A new episode, on your time</Heading>
+                            <Heading level={2}>Automatic episodes</Heading>
                           </Row>
                           <Row variant="form-row">
                             <Select name="schedule" value={data.schedule} options={data.scheduleOptions} label="Background production" />
                             <Input name="at" value={data.at} type="time" label="Production starts at (UTC)" />
                           </Row>
-                          <Text variant="muted">Your server keeps working when this tab is closed. Weekly episodes start on Mondays. Catch-up runs once after downtime.</Text>
+                          <Text variant="muted">{data.nextRunLabel}</Text>
+                          <Text variant="small">Choose daily or weekly and save show settings. Your server researches and records while you’re away, then adds the episode to your library.</Text>
                           <Text variant="small">Up to 3 productions per 24 hours and 50 saved episodes per account. AI research and speech use your connected API billing.</Text>
                         </Card>
                       </Stack>
@@ -382,7 +383,9 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                           <Text variant="muted">Current web reporting and public posts through DeepSeek search, with structured scripts and an editorial pass. You can also use DeepSeek search with your local writer.</Text>
                           <Input name="deepSeekKey" value={data.deepSeekKey} type="password" label="DeepSeek API key" autoComplete="off" placeholder="Leave blank to keep the saved key" />
                           <Input name="deepSeekModel" value={data.deepSeekModel} label="DeepSeek writing model" />
-                          <Button intent="disconnectDeepSeek" variant="text">Disconnect DeepSeek</Button>
+                          {data.deepSeekConnected && (
+                            <Button intent="disconnectDeepSeek" variant="text" disabled={data.busy}>Disconnect DeepSeek</Button>
+                          )}
                         </Card>
                         <Card variant="form">
                           <Row variant="section-heading">
@@ -394,7 +397,9 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                           <Input name="serviceToken" value={data.serviceToken} type="password" label="AI Service app credential" autoComplete="off" placeholder="Leave blank to keep the saved credential" />
                           <Text variant="small">In AI Service, issue a local server app credential with app ID podcasts. Paste it here. This is a server connection; the URL is relative to the computer running My Podcasts.</Text>
                           <Text variant="small">The service must be enabled with an active model. Automatic research uses the selected dated feeds and connected X posts; choose DeepSeek search for wider web coverage.</Text>
-                          <Button intent="disconnectService" variant="text">Disconnect AI Service</Button>
+                          {data.serviceConnected && (
+                            <Button intent="disconnectService" variant="text" disabled={data.busy}>Disconnect AI Service</Button>
+                          )}
                         </Card>
                         <Card variant="form">
                           <Row variant="section-heading">
@@ -408,19 +413,29 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                             <Input name="ttsModel" value={data.ttsModel} label="Speech model" />
                           </Row>
                           <Text variant="small">Without a voice key, manual production saves a reviewed script and waits for narration. Audio schedules require voices to be configured. Cloud API billing is separate from subscriptions.</Text>
-                          <Button intent="disconnect" variant="text">Disconnect OpenAI</Button>
+                          {data.openAIConnected && (
+                            <Button intent="disconnect" variant="text" disabled={data.busy}>Disconnect OpenAI</Button>
+                          )}
                         </Card>
                         <Card variant="form">
-                          <Heading level={2}>Direct X timelines · Optional</Heading>
+                          <Row variant="section-heading">
+                            <Heading level={2}>Direct X timelines · Optional</Heading>
+                            <Badge tone="blue">{data.xLabel}</Badge>
+                          </Row>
                           <Input name="xToken" value={data.xToken} type="password" label="X API bearer token" autoComplete="off" placeholder="Leave blank to keep the saved token" />
                           <Text variant="small">Direct timeline access requires an X developer token. Feed-only mode does not check indexed posts; web search coverage remains incomplete.</Text>
-                          <Button intent="disconnectX" variant="text">Disconnect X</Button>
+                          {data.xConnected && (
+                            <Button intent="disconnectX" variant="text" disabled={data.busy}>Disconnect X</Button>
+                          )}
                         </Card>
                         <Card variant="form">
                           <Row gap="sm">
                             <Button intent="saveProviders" variant="primary" disabled={data.busy}>Save connections</Button>
-                            <Button intent="testProvider" variant="quiet" disabled={data.busy}>Save & check writing connection</Button>
+                            <Button intent="testProvider" variant="quiet" disabled={data.busyOrChecking}>Save & check writing connection</Button>
                           </Row>
+                          {data.checking && (
+                            <Text variant="small">Checking the writing connection…</Text>
+                          )}
                           <Text variant="small">The connection check sends one short request to the selected writer. Cloud checks use API billing. Disconnecting a provider stops active production so it can be resumed with saved progress.</Text>
                         </Card>
                       </>

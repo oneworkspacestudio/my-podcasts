@@ -285,7 +285,7 @@ func TestCompleteProductionResumeAndEditorialGate(t *testing.T) {
 		t.Fatal("wav data length")
 	}
 	before := speech
-	if err = a.produce(context.Background(), &result); err != nil || speech != before {
+	if err = a.produce(context.Background(), a.provider(), &result); err != nil || speech != before {
 		t.Fatal("resume repeated paid speech", err, speech, before)
 	}
 	e2, err := a.create(s.User.ID, setting)
@@ -378,6 +378,162 @@ func TestBudgetSurvivesDeletionAndSchedulerCatchesUpOnce(t *testing.T) {
 	}
 	if _, err = a.create(s.User.ID, settings); err == nil {
 		t.Fatal("deleting an episode reset paid production allowance")
+	}
+}
+
+func TestProductionAndDueScheduleFinishWithoutBrowserSession(t *testing.T) {
+	a, h, cookie, session := fixture(t)
+	user := session.User.ID
+	w := request(h, "PUT", "/api/providers", map[string]string{"key": "synthetic-key"}, cookie, session.CSRF)
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	settings := Defaults()
+	settings.Minutes, settings.Schedule = 8, "daily"
+	settings.Feeds, settings.People = []string{"bbc"}, nil
+	w = request(h, "PUT", "/api/settings", settings, cookie, session.CSRF)
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	now := time.Now()
+	date := now.Add(-time.Hour).UTC().Format(time.RFC1123Z)
+	feed := "<rss><channel>"
+	for i := 0; i < 3; i++ {
+		feed += fmt.Sprintf("<item><title>Synthetic source %d</title><link>https://example.com/%d</link><pubDate>%s</pubDate><description>Synthetic evidence only.</description></item>", i, i, date)
+	}
+	feed += "</channel></rss>"
+	script, err := json.Marshal(sampleScript())
+	if err != nil {
+		t.Fatal(err)
+	}
+	recording := make(chan struct{})
+	releaseRecording := make(chan struct{})
+	var firstRecording sync.Once
+	var searchBudgets []int
+	a.client = &http.Client{Transport: transportFunc(func(r *http.Request) (*http.Response, error) {
+		var result []byte
+		switch r.URL.Path {
+		case "/v1/audio/speech":
+			firstRecording.Do(func() { close(recording) })
+			select {
+			case <-releaseRecording:
+			case <-r.Context().Done():
+				return nil, r.Context().Err()
+			}
+			result = make([]byte, 2048)
+		case "/v1/responses":
+			var body struct {
+				Tools []any  `json:"tools"`
+				Max   int    `json:"max_output_tokens"`
+				Input string `json:"input"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				return nil, err
+			}
+			switch {
+			case len(body.Tools) > 0:
+				searchBudgets = append(searchBudgets, body.Max)
+				result = []byte(`{"status":"incomplete","incomplete_details":{"reason":"max_output_tokens"}}`)
+			case strings.Contains(body.Input, "Write an original premium"):
+				if !strings.Contains(body.Input, "Synthetic source 0") {
+					t.Error("writer did not get the dated fallback evidence")
+				}
+				result = mockResponse(string(script))
+			default:
+				result = mockResponse(`{"passed":true,"issues":[]}`)
+			}
+		default:
+			if r.URL.Host != "feeds.bbci.co.uk" {
+				return nil, fmt.Errorf("unexpected provider request to %s", r.URL.Host)
+			}
+			result = []byte(feed)
+		}
+		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(bytes.NewReader(result))}, nil
+	})}
+	// Enqueue through the normal authenticated endpoint before starting the
+	// supervised loop. Its provider requests must outlive the HTTP request.
+	w = request(h, "POST", "/api/episodes", nil, cookie, session.CSRF)
+	if w.Code != 202 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	manual := decodeEpisode(t, w)
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- a.Run(ctx) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case err := <-done:
+			if err != nil {
+				t.Error(err)
+			}
+		case <-time.After(5 * time.Second):
+			t.Error("server worker did not stop")
+		}
+	})
+	select {
+	case <-recording:
+	case <-time.After(5 * time.Second):
+		t.Fatal("manual episode did not reach server-side narration")
+	}
+	due := now.Add(-time.Minute).Unix()
+	if _, err := h.DB.Exec("UPDATE podcast_settings SET next_run=? WHERE user_id=?", due, user); err != nil {
+		t.Fatal(err)
+	}
+	settings.ShowName = "Updated show while a run is due"
+	w = request(h, "PUT", "/api/settings", settings, cookie, session.CSRF)
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if err := a.schedule(time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	var next int64
+	if err := h.DB.QueryRow("SELECT next_run FROM podcast_settings WHERE user_id=?", user).Scan(&next); err != nil || next != due {
+		t.Fatalf("due schedule moved while another production was recording: %d, %v", next, err)
+	}
+	w = request(h, "POST", "/auth/logout", nil, cookie, session.CSRF)
+	if w.Code != 200 || request(h, "GET", "/api/state", nil, cookie, "").Code != 401 {
+		t.Fatalf("synthetic session was not closed: %d", w.Code)
+	}
+	close(releaseRecording)
+	var ready int
+	for deadline := time.Now().Add(10 * time.Second); time.Now().Before(deadline); {
+		if err := h.DB.QueryRow("SELECT count(*) FROM podcast_episodes WHERE user_id=? AND status='ready'", user).Scan(&ready); err != nil {
+			t.Fatal(err)
+		}
+		if ready == 2 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if ready != 2 {
+		t.Fatal("manual and automatic productions did not finish without a session", ready)
+	}
+	w = request(h, "POST", "/api/login", map[string]string{"email": "podcast-test@example.invalid", "password": "Synthetic-podcast-only-2026!"}, nil, "")
+	if w.Code != 200 {
+		t.Fatal(w.Code)
+	}
+	newCookie := w.Result().Cookies()[0]
+	var state struct {
+		Episodes []Episode
+		NextRun  int64
+	}
+	w = request(h, "GET", "/api/state", nil, newCookie, "")
+	if err := json.Unmarshal(w.Body.Bytes(), &state); err != nil || len(state.Episodes) != 2 || state.NextRun <= time.Now().Unix() {
+		t.Fatalf("ready episodes and next schedule not available on return: %+v, %v", state, err)
+	}
+	for _, episode := range state.Episodes {
+		w = request(h, "GET", "/api/episodes/"+episode.ID+"/audio", nil, newCookie, "")
+		if w.Code != 200 || !bytes.HasPrefix(w.Body.Bytes(), []byte("RIFF")) || episode.ResearchProvider != "feeds" || len(episode.Sources) != 3 {
+			t.Fatalf("ready episode did not have playable audio and dated evidence: %d", w.Code)
+		}
+		if episode.ID != manual.ID && episode.Settings.ShowName != settings.ShowName {
+			t.Fatal("scheduled episode did not use the latest saved show settings")
+		}
+	}
+	if fmt.Sprint(searchBudgets) != "[16000 32000 16000 32000]" {
+		t.Fatal("research retries were not bounded", searchBudgets)
 	}
 }
 

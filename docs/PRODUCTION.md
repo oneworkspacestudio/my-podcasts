@@ -30,8 +30,11 @@ identity, branding, catchphrases, recordings or host voices.
    for AI Service. DeepSeek search is bounded to two news queries plus one per
    selected person (at most ten calls); retrieved URLs/dates/excerpts become the
    evidence directory. AI Service never claims browsing in feed-only mode.
-   Missing credentials/coverage and undated context are explicit. Social and
-   company statements remain attributed.
+   If a provider runs out of output, the worker retries once with a larger
+   allowance. If web research still returns too little usable evidence, the
+   worker can use the selected dated feeds and any retrieved direct posts. The
+   episode records this limited coverage and requires at least three dated
+   sources for the fallback. Social and company statements remain attributed.
 3. Use the selected OpenAI, DeepSeek or AI Service writer to generate a
    structured, original Alex/Jamie script: cold open, introduction with
    AI disclosure, reported chapters, analysis, counterpoint, next developments,
@@ -59,9 +62,12 @@ no custom/cloned voices, licensed music or advertisements are included.
 SQLite persists the queue and every completed stage. One worker produces one
 episode at a time, bounded to 24 waiting/running jobs globally and three per
 account. A production can run for up to 55 minutes. Scheduling uses explicit UTC;
-weekly means Monday. After downtime only one catch-up is attempted; missed
-historical schedules are not replayed. A queued job prevents another scheduled
-job for the same account. Disabled accounts do not run.
+weekly means Monday. Enable a cadence under Create an episode and save show
+settings. One catch-up run stays due through downtime, missing connections,
+busy queues and production limits. The next scheduled time is saved in the same
+transaction that queues the due episode. Saving unrelated settings leaves that
+time intact. The server adds completed episodes to the account's library.
+Disabled accounts do not run.
 
 Browser closure and normal sign-out do not revoke an already authorized
 background production. Cancel stops its request context; the last charged

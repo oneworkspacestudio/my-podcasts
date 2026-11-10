@@ -106,18 +106,35 @@ func (a *App) schedule(now time.Time) error {
 		if validSettings(d.s) != nil {
 			continue
 		}
-		var pending int
-		if err = a.h.DB.QueryRow("SELECT count(*) FROM podcast_episodes WHERE user_id=? AND status IN ('queued','running')", d.user).Scan(&pending); err != nil {
-			return err
-		}
-		if pending == 0 {
-			_, _ = a.create(d.user, d.s)
-		}
-		if _, err = a.h.DB.Exec("UPDATE podcast_settings SET next_run=? WHERE user_id=?", nextRun(d.s, now), d.user); err != nil {
+		if err := a.enqueueScheduled(d.user, d.s, now); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+func (a *App) enqueueScheduled(user string, settings Settings, now time.Time) error {
+	tx, err := a.h.DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	var pending bool
+	if err := tx.QueryRow("SELECT EXISTS(SELECT 1 FROM podcast_episodes WHERE user_id=? AND status IN ('queued','running'))", user).Scan(&pending); err != nil {
+		return err
+	}
+	if pending {
+		return nil
+	}
+	if _, err := createEpisode(tx, user, settings, now); err != nil {
+		if errors.Is(err, errAccountLimit) || errors.Is(err, errQueueFull) {
+			return nil
+		}
+		return err
+	}
+	if _, err := tx.Exec("UPDATE podcast_settings SET next_run=? WHERE user_id=?", nextRun(settings, now), user); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 func (a *App) checkpoint(ctx context.Context, e *Episode) error {
 	if err := ctx.Err(); err != nil {
@@ -127,6 +144,9 @@ func (a *App) checkpoint(ctx context.Context, e *Episode) error {
 	defer a.h.Freeze.RUnlock()
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	var status, role string
 	if err := a.h.DB.QueryRow("SELECT e.status,u.role FROM podcast_episodes e JOIN host_users u ON u.id=e.user_id WHERE e.id=?", e.ID).Scan(&status, &role); err != nil {
 		return err
@@ -158,6 +178,7 @@ func (a *App) work(root context.Context) (bool, error) {
 		return false, err
 	}
 	ctx, cancel := context.WithTimeout(root, 55*time.Minute)
+	p := a.p
 	a.active[e.ID] = cancel
 	e.Status = "running"
 	err = a.save(&e)
@@ -168,7 +189,7 @@ func (a *App) work(root context.Context) (bool, error) {
 		return false, err
 	}
 	ctx = context.WithValue(ctx, generationIdentity{}, user)
-	err = a.produce(ctx, &e)
+	err = a.produce(ctx, p, &e)
 	cancel()
 	var saveErr error
 	a.h.Freeze.RLock()
@@ -212,8 +233,7 @@ func (a *App) work(root context.Context) (bool, error) {
 
 var errReview = errors.New("The editorial check found issues. Review the transcript and research, then regenerate before narration")
 
-func (a *App) produce(ctx context.Context, e *Episode) error {
-	p := a.provider()
+func (a *App) produce(ctx context.Context, p providers, e *Episode) error {
 	if !textComplete(*e) {
 		if err := p.productionError(false); err != nil {
 			return err
