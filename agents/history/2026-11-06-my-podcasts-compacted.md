@@ -240,3 +240,12 @@ for acceptance. Release uses the unchanged minimum Workspace122 and
 native-podcasts-v1 contract and the normal independent update channel.
 The user authorized managed release and channel promotion as standing policy.
 An update to the user's installation requires an installation request.
+
+Preview.4 publication verified. The anonymous channel at suite37bfef1 selected
+the 48 expected Podcast payloads from preview.3 using the ordinary Workspace122
+installer. The public package and metadata digests matched. The installer applied
+the public update to an isolated synthetic NTFS installation, verified the
+payloads and preserved manager, Accounts, MyAccounts identity, show settings,
+schedule and credentials. Supported rollback and service stop passed. See
+`docs/evidence` for the sanitized production-repair delivery receipt. The user
+installation was not updated and actual paid provider calls were not exercised.

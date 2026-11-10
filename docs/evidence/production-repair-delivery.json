@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "release": "https://github.com/oneworkspacestudio/my-podcasts/releases/tag/v0.1.0-preview.4",
+  "workspaceVersionTested": "0.3.0-preview.122",
+  "channelCommit": "37bfef1",
+  "public": {
+    "passed": true,
+    "tag": "v0.1.0-preview.4",
+    "sourceCommit": "82f7f9a085a0e2ecc9a0966ed05a8dd5722a3a52",
+    "executableSHA256": "af7aa619ceb6324d6643961f390eee68d90517e3fa1d19014d22c2a37661d32a",
+    "archiveSHA256": "1270af7c03be20229f769872cdfb36cee45fbd4ace4d8ccbcf93de73a0677a6e",
+    "assetsVerified": 10,
+    "anonymousChannel": true,
+    "anonymousFullPackage": true,
+    "anonymousUpdateManifest": true
+  },
+  "managedPublicUpdate": {
+    "anonymousPlan": true,
+    "verifiedPayloads": 48,
+    "normalRecovery": true,
+    "rollback": true,
+    "passed": true,
+    "stopped": true,
+    "synthetic": true
+  },
+  "acceptance": {
+    "schema": 1,
+    "passed": true,
+    "version": "0.1.0-preview.4",
+    "executableSHA256": "af7aa619ceb6324d6643961f390eee68d90517e3fa1d19014d22c2a37661d32a",
+    "goTestsAndVet": true,
+    "nativeBrowserScenariosPassed": 6,
+    "boundedResearchRetryAndDatedFallback": true,
+    "manualAndScheduledWAVsFinishedWithoutSession": true,
+    "allFourCredentialRemovalsPersistAcrossRestart": true,
+    "managedFreshSetupUpgradeAndRollback": true,
+    "managedPayloadsVerified": 48,
+    "syntheticNTFSAccountsAndProviderFixtures": true,
+    "paidProviderGenerationExercised": false
+  },
+  "userInstallationUpdated": false,
+  "fixtureCleanup": {
+    "passed": true,
+    "stopped": true,
+    "privateFixtureRemoved": true,
+    "syntheticOnly": true,
+    "programFixtureRemoved": true
+  }
+}
