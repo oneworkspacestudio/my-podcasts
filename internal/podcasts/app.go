@@ -377,7 +377,7 @@ func (a *App) create(user string, s Settings) (Episode, error) {
 		return Episode{}, err
 	}
 	defer tx.Rollback()
-	e, err := createEpisode(tx, user, s, time.Now())
+	e, err := createEpisode(tx, user, s, time.Now(), 0)
 	if err != nil {
 		return e, err
 	}
@@ -387,14 +387,14 @@ func (a *App) create(user string, s Settings) (Episode, error) {
 var errAccountLimit = errors.New("Studio limit reached: up to 3 productions per 24 hours, 3 queued and 50 saved episodes")
 var errQueueFull = errors.New("The studio queue is full. Please try again later")
 
-func createEpisode(tx *sql.Tx, user string, s Settings, now time.Time) (Episode, error) {
-	e := Episode{ID: apphost.ID(), Created: now.Unix(), Updated: now.Unix(), Status: "queued", Stage: "Waiting for the studio", Settings: s, Sources: []Source{}, Warnings: []string{}}
+func createEpisode(tx *sql.Tx, user string, s Settings, now time.Time, scheduledFor int64) (Episode, error) {
+	e := Episode{ID: apphost.ID(), Created: now.Unix(), Updated: now.Unix(), ScheduledFor: scheduledFor, Status: "queued", Stage: "Waiting for the studio", Settings: s, Sources: []Source{}, Warnings: []string{}}
 	var err error
 	var pending, total, daily int
 	if err = tx.QueryRow("SELECT count(*),sum(CASE WHEN status IN ('queued','running') THEN 1 ELSE 0 END) FROM podcast_episodes WHERE user_id=?", user).Scan(&total, nullableInt(&pending)); err != nil {
 		return e, err
 	}
-	if err = tx.QueryRow("SELECT count(*) FROM podcast_productions WHERE user_id=? AND started>=?", user, now.Add(-24*time.Hour).Unix()).Scan(&daily); err != nil {
+	if err = tx.QueryRow("SELECT count(*) FROM podcast_productions WHERE user_id=? AND started>?", user, now.Add(-24*time.Hour).Unix()).Scan(&daily); err != nil {
 		return e, err
 	}
 	if total >= 50 || pending >= 3 || daily >= 3 {
@@ -510,7 +510,7 @@ func (a *App) retry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var daily, global int
-	if err = a.h.DB.QueryRow("SELECT count(*) FROM podcast_productions WHERE user_id=? AND started>=?", apphost.Current(r).User.ID, time.Now().Add(-24*time.Hour).Unix()).Scan(&daily); err != nil {
+	if err = a.h.DB.QueryRow("SELECT count(*) FROM podcast_productions WHERE user_id=? AND started>?", apphost.Current(r).User.ID, time.Now().Add(-24*time.Hour).Unix()).Scan(&daily); err != nil {
 		a.h.DBError(w, err)
 		return
 	}
@@ -530,6 +530,7 @@ func (a *App) retry(w http.ResponseWriter, r *http.Request) {
 	}
 	if e.Status == "needs_review" {
 		e.Script = Script{}
+		e.LengthNote = ""
 		e.Review = Review{}
 	}
 	e.Status = "queued"

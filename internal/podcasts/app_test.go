@@ -305,11 +305,11 @@ func TestCompleteProductionResumeAndEditorialGate(t *testing.T) {
 func TestScriptEvidenceAndAudioLevels(t *testing.T) {
 	s := sampleScript()
 	sources := []Source{{ID: "S1"}, {ID: "S2"}}
-	if err := validateScript(s, sources, 8); err != nil {
+	if _, err := validateScript(s, sources); err != nil {
 		t.Fatal(err)
 	}
 	s.Segments[2].Turns[0].Sources = []string{"invented"}
-	if validateScript(s, sources, 8) == nil {
+	if _, err := validateScript(s, sources); err == nil {
 		t.Fatal("invented citation")
 	}
 	b := make([]byte, 4000)

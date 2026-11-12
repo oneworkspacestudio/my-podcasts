@@ -39,7 +39,10 @@ identity, branding, catchphrases, recordings or host voices.
    structured, original Alex/Jamie script: cold open, introduction with
    AI disclosure, reported chapters, analysis, counterpoint, next developments,
    close. Enforce narrator names, chapter structure, word range, chunk limits and
-   evidence IDs. News and page content are untrusted data, never instructions.
+   evidence IDs. When a coherent draft misses the target duration, the writer
+   gets one chance to adjust. A usable draft can still move to editorial
+   review, and the episode explains when it may be shorter or longer than
+   requested. News and page content are untrusted data, never instructions.
 4. Run a separate AI editorial consistency check against the dossier. Failed
    drafts stop before speech synthesis. Users can inspect notes and regenerate.
    This check is not independent fact verification or a guarantee of accuracy.
@@ -63,11 +66,15 @@ SQLite persists the queue and every completed stage. One worker produces one
 episode at a time, bounded to 24 waiting/running jobs globally and three per
 account. A production can run for up to 55 minutes. Scheduling uses explicit UTC;
 weekly means Monday. Enable a cadence under Create an episode and save show
-settings. One catch-up run stays due through downtime, missing connections,
+settings. Three times daily schedules three editions eight hours apart using
+the chosen UTC time as one of the three slots. The app shows all three times
+before saving. The writer emphasizes a different angle for each edition.
+One catch-up run stays due through downtime, missing connections,
 busy queues and production limits. The next scheduled time is saved in the same
 transaction that queues the due episode. Saving unrelated settings leaves that
 time intact. The server adds completed episodes to the account's library.
-Disabled accounts do not run.
+Manual and automatic productions share the limit of three per 24 hours and
+the library limit of 50. Disabled accounts do not run.
 
 Browser closure and normal sign-out do not revoke an already authorized
 background production. Cancel stops its request context; the last charged

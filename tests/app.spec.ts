@@ -67,3 +67,32 @@ test('Disconnect removes only the selected credential despite invalid unsaved fi
  const state = await (await page.request.get('/api/state')).json();
  for (const [, flag] of connections) expect(state.provider[flag]).toBe(false);
 });
+
+test('three daily episodes can be scheduled and the saved schedule is visible on mobile', async ({page}) => {
+ await page.setViewportSize({width:390,height:844});
+ await login(page);
+ const me = await (await page.request.get('/api/me')).json();
+ const result = await page.request.put('/api/providers', {
+  headers: {Origin:origin,'X-CSRF-Token':me.csrf},
+  data: {textProvider:'openai',researchProvider:'feeds',key:'synthetic-scheduling-only'},
+ });
+ expect(result.status()).toBe(200);
+ await page.getByRole('button',{name:'Create',exact:true}).click();
+ await page.getByLabel('Background production').selectOption({label:'Three times daily'});
+ const future = new Date(Date.now()+2*60*60*1000);
+ const at = future.toISOString().slice(11,16);
+ const minute = at.slice(3);
+ const times = [0,8,16].map(offset => String(future.getUTCHours()%8+offset).padStart(2,'0')+':'+minute).join(', ');
+ await page.getByLabel('Schedule time (UTC)').fill(at);
+ await expect(page.getByText('Daily runs at '+times+' UTC.',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Save show settings',exact:true}).click();
+ await expect(page.getByRole('status')).toContainText('saved');
+ const state = await (await page.request.get('/api/state')).json();
+ expect(state.settings.schedule).toBe('daily-three');
+ expect(state.nextRun).toBeGreaterThan(Date.now()/1000);
+ await page.reload();
+ await expect(page.getByText('Three times daily',{exact:true})).toBeVisible();
+ await page.getByRole('button',{name:'Create',exact:true}).click();
+ await expect(page.getByLabel('Background production')).toHaveValue('daily-three');
+ await expect(page.getByText('Daily runs at '+times+' UTC.',{exact:true})).toBeVisible();
+});

@@ -249,3 +249,28 @@ payloads and preserved manager, Accounts, MyAccounts identity, show settings,
 schedule and credentials. Supported rollback and service stop passed. See
 `docs/evidence` for the sanitized production-repair delivery receipt. The user
 installation was not updated and actual paid provider calls were not exercised.
+
+## 2026-11-12 script length and three daily editions
+
+The user's 27% interruption came from the strict script-duration gate. Preview.5
+counts words, gives an out-of-range draft one bounded correction and selects a
+usable draft for the existing evidence and editorial checks. It records a note
+if the selected script still misses the duration target. Minimum viable length
+and maximum words, turns and chunk sizes still apply. The detail page tolerates
+missing citations on narration turns that do not require sources.
+
+The opt-in Three times daily mode uses three slots eight hours apart, anchored
+to the selected UTC time. It records the scheduled slot, varies the writing
+angle by edition and atomically advances the next slot with enqueue. After
+downtime it catches up on the latest slot. Existing on-demand, once-daily and
+weekly settings, the rolling limit of three productions and private storage
+remain compatible. No database migration or new sidecar is required.
+
+The Go test saves the new cadence through the authenticated API and advances
+the production worker at 07:00, 15:00 and 23:00 UTC while signed out. Three
+separate WAVs play after signing in, and the next slot is tomorrow at 07:00.
+It exercises a shorter viable draft, an overlong draft corrected before review
+and a script accepted on the first pass. Uses synthetic NTFS data and provider
+responses. The local owner config read during diagnosis reported preview.3.
+Release and public-channel promotion are authorized by standing instructions.
+Applying the update to an owner installation requires an installation request.

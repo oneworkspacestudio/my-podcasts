@@ -147,6 +147,9 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                             <Stack variant="episode-copy" gap="sm">
                               <Row gap="sm">
                                 <Badge tone={item.tone}>{item.statusLabel}</Badge>
+                                {item.scheduledFor && (
+                                  <Badge tone="neutral">Automatic</Badge>
+                                )}
                                 <Text variant="eyebrow">{item.date}</Text>
                               </Row>
                               <Heading level={3}>{item.title}</Heading>
@@ -213,11 +216,14 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                           </Row>
                           <Row variant="form-row">
                             <Select name="schedule" value={data.schedule} options={data.scheduleOptions} label="Background production" />
-                            <Input name="at" value={data.at} type="time" label="Production starts at (UTC)" />
+                            <Input name="at" value={data.at} type="time" label="Schedule time (UTC)" />
                           </Row>
+                          {data.editionTimes && (
+                            <Text>{data.editionTimes}</Text>
+                          )}
                           <Text variant="muted">{data.nextRunLabel}</Text>
-                          <Text variant="small">Choose daily or weekly and save show settings. Your server researches and records while you’re away, then adds the episode to your library.</Text>
-                          <Text variant="small">Up to 3 productions per 24 hours and 50 saved episodes per account. AI research and speech use your connected API billing.</Text>
+                          <Text variant="small">Save show settings to enable automatic episodes. Your server adds each completed recording to the library while you’re away.</Text>
+                          <Text variant="small">Manual and scheduled episodes share the limit of 3 productions per 24 hours. The library holds up to 50 episodes. AI research and speech use your connected API billing.</Text>
                         </Card>
                       </Stack>
                       <Stack variant="studio-aside" gap="md">
@@ -460,6 +466,9 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                         <Heading level={1}>{data.detailTitle}</Heading>
                         <Text variant="muted">{data.detailSummary}</Text>
                         <Text variant="small">{data.detailMeta}</Text>
+                        {data.lengthNote && (
+                          <Text variant="small">{data.lengthNote}</Text>
+                        )}
                       </Stack>
                     </Row>
                     {data.detailReady ? (

@@ -108,6 +108,8 @@ Page Dashboard
                     Stack variant=episode-copy gap=sm
                       Row gap=sm
                         Badge tone=$item.tone "$item.statusLabel"
+                        If condition=$item.scheduledFor
+                          Badge tone=neutral "Automatic"
                         Text variant=eyebrow "$item.date"
                       Heading level=3 "$item.title"
                       Text variant=muted "$item.summary"
@@ -154,10 +156,12 @@ Page Dashboard
                     Heading level=2 "Automatic episodes"
                   Row variant=form-row
                     Select name=schedule value=$schedule options=$scheduleOptions label="Background production"
-                    Input name=at value=$at type=time label="Production starts at (UTC)"
+                    Input name=at value=$at type=time label="Schedule time (UTC)"
+                  If condition=$editionTimes
+                    Text "$editionTimes"
                   Text variant=muted "$nextRunLabel"
-                  Text variant=small "Choose daily or weekly and save show settings. Your server researches and records while you’re away, then adds the episode to your library."
-                  Text variant=small "Up to 3 productions per 24 hours and 50 saved episodes per account. AI research and speech use your connected API billing."
+                  Text variant=small "Save show settings to enable automatic episodes. Your server adds each completed recording to the library while you’re away."
+                  Text variant=small "Manual and scheduled episodes share the limit of 3 productions per 24 hours. The library holds up to 50 episodes. AI research and speech use your connected API billing."
               Stack variant=studio-aside gap=md
                 Card variant=show-preview
                   Text variant=eyebrow "YOUR SHOW"
@@ -325,6 +329,8 @@ Page Dashboard
                 Heading level=1 "$detailTitle"
                 Text variant=muted "$detailSummary"
                 Text variant=small "$detailMeta"
+                If condition=$lengthNote
+                  Text variant=small "$lengthNote"
             If condition=$detailReady
               Card variant=player
                 Text variant=eyebrow "SETTLE IN. PRESS PLAY."

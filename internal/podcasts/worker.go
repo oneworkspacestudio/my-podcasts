@@ -12,6 +12,12 @@ import (
 )
 
 func (a *App) Run(ctx context.Context) error {
+	t := time.NewTicker(20 * time.Second)
+	defer t.Stop()
+	return a.run(ctx, time.Now, t.C)
+}
+
+func (a *App) run(ctx context.Context, now func() time.Time, ticks <-chan time.Time) error {
 	// A single supervised worker resumes persisted stages after a service restart.
 	rows, err := a.h.DB.Query("SELECT id,body FROM podcast_episodes WHERE status='running'")
 	if err != nil {
@@ -43,13 +49,11 @@ func (a *App) Run(ctx context.Context) error {
 			return err
 		}
 	}
-	t := time.NewTicker(20 * time.Second)
-	defer t.Stop()
 	for {
 		if ctx.Err() != nil {
 			return nil
 		}
-		if err = a.schedule(time.Now()); err != nil {
+		if err = a.schedule(now()); err != nil {
 			a.h.Log.Error("podcast scheduler unavailable")
 		}
 		found, err := a.work(ctx)
@@ -62,7 +66,7 @@ func (a *App) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return nil
-		case <-t.C:
+		case <-ticks:
 		case <-a.wake:
 		}
 	}
@@ -75,18 +79,20 @@ func (a *App) schedule(now time.Time) error {
 	if a.p.productionError(true) != nil {
 		return nil
 	}
-	rows, err := a.h.DB.Query("SELECT s.user_id,s.body FROM podcast_settings s JOIN host_users u ON u.id=s.user_id WHERE s.next_run>0 AND s.next_run<=? AND u.role!='disabled'", now.Unix())
+	rows, err := a.h.DB.Query("SELECT s.user_id,s.body,s.next_run FROM podcast_settings s JOIN host_users u ON u.id=s.user_id WHERE s.next_run>0 AND s.next_run<=? AND u.role!='disabled' ORDER BY s.next_run,s.user_id", now.Unix())
 	if err != nil {
 		return err
 	}
 	type due struct {
 		user string
 		s    Settings
+		at   int64
 	}
 	list := []due{}
 	for rows.Next() {
 		var user, raw string
-		if err = rows.Scan(&user, &raw); err != nil {
+		var at int64
+		if err = rows.Scan(&user, &raw, &at); err != nil {
 			rows.Close()
 			return err
 		}
@@ -95,7 +101,7 @@ func (a *App) schedule(now time.Time) error {
 			rows.Close()
 			return err
 		}
-		list = append(list, due{user, s})
+		list = append(list, due{user, s, at})
 	}
 	err = rows.Err()
 	rows.Close()
@@ -106,13 +112,13 @@ func (a *App) schedule(now time.Time) error {
 		if validSettings(d.s) != nil {
 			continue
 		}
-		if err := a.enqueueScheduled(d.user, d.s, now); err != nil {
+		if err := a.enqueueScheduled(d.user, d.s, now, d.at); err != nil {
 			return err
 		}
 	}
 	return nil
 }
-func (a *App) enqueueScheduled(user string, settings Settings, now time.Time) error {
+func (a *App) enqueueScheduled(user string, settings Settings, now time.Time, scheduledFor int64) error {
 	tx, err := a.h.DB.Begin()
 	if err != nil {
 		return err
@@ -125,13 +131,18 @@ func (a *App) enqueueScheduled(user string, settings Settings, now time.Time) er
 	if pending {
 		return nil
 	}
-	if _, err := createEpisode(tx, user, settings, now); err != nil {
+	next := nextRun(settings, now)
+	if settings.Schedule == "daily-three" {
+		// After downtime, catch up on the latest edition and skip older slots.
+		scheduledFor = next - int64(threeDailySpacing/time.Second)
+	}
+	if _, err := createEpisode(tx, user, settings, now, scheduledFor); err != nil {
 		if errors.Is(err, errAccountLimit) || errors.Is(err, errQueueFull) {
 			return nil
 		}
 		return err
 	}
-	if _, err := tx.Exec("UPDATE podcast_settings SET next_run=? WHERE user_id=?", nextRun(settings, now), user); err != nil {
+	if _, err := tx.Exec("UPDATE podcast_settings SET next_run=? WHERE user_id=?", next, user); err != nil {
 		return err
 	}
 	return tx.Commit()
@@ -261,16 +272,13 @@ func (a *App) produce(ctx context.Context, p providers, e *Episode) error {
 		if err := a.checkpoint(ctx, e); err != nil {
 			return err
 		}
-		s, err := a.writeScript(ctx, p, e)
+		s, note, err := a.writeScript(ctx, p, e)
 		if err != nil {
 			return err
 		}
 		e.WriterProvider = p.TextProvider
 		e.Script = s
-		if err = validateScript(e.Script, e.Sources, e.Settings.Minutes); err != nil {
-			e.Script = Script{}
-			return err
-		}
+		e.LengthNote = note
 		if err = a.checkpoint(ctx, e); err != nil {
 			return err
 		}

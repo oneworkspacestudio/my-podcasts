@@ -1,5 +1,14 @@
 # Acceptance
 
+## Preview.5 script length and three daily episodes
+
+The worker tries one length correction before keeping a coherent draft for
+editorial review. The duration remains a target, and finished episodes show
+their measured audio duration. A worker regression advances through three
+UTC slots with the account signed out. It verifies the length correction,
+the shorter draft fallback, three playable WAVs, and the next scheduled slot
+after signing back in. The provider responses and narration bytes are synthetic.
+
 ## Preview.4 production repair
 
 The worker recovers from incomplete web research using verified dated evidence

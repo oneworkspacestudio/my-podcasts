@@ -81,8 +81,8 @@ func validSettings(s Settings) error {
 	if s.VoiceA == s.VoiceB {
 		return errors.New("Choose two distinct voices")
 	}
-	if s.Schedule != "off" && s.Schedule != "daily" && s.Schedule != "weekly" {
-		return errors.New("Choose off, daily or weekly scheduling")
+	if s.Schedule != "off" && s.Schedule != "daily" && s.Schedule != "daily-three" && s.Schedule != "weekly" {
+		return errors.New("Choose on demand, once daily, three times daily, or weekly scheduling")
 	}
 	if _, e := time.Parse("15:04", s.At); e != nil {
 		return errors.New("Choose a valid UTC production time")
@@ -114,12 +114,26 @@ func validSettings(s Settings) error {
 	}
 	return nil
 }
+
+const threeDailySpacing = 8 * time.Hour
+
 func nextRun(s Settings, now time.Time) int64 {
 	if s.Schedule == "off" {
 		return 0
 	}
 	t, _ := time.Parse("15:04", s.At)
-	n := time.Date(now.UTC().Year(), now.UTC().Month(), now.UTC().Day(), t.Hour(), t.Minute(), 0, 0, time.UTC)
+	now = now.UTC()
+	hour := t.Hour()
+	if s.Schedule == "daily-three" {
+		hour %= 8
+	}
+	n := time.Date(now.Year(), now.Month(), now.Day(), hour, t.Minute(), 0, 0, time.UTC)
+	if s.Schedule == "daily-three" {
+		if !n.After(now) {
+			n = n.Add((now.Sub(n)/threeDailySpacing + 1) * threeDailySpacing)
+		}
+		return n.Unix()
+	}
 	if !n.After(now) {
 		n = n.AddDate(0, 0, 1)
 	}
@@ -165,6 +179,7 @@ type Episode struct {
 	ResearchProvider string   `json:"researchProvider,omitempty"`
 	ID               string   `json:"id"`
 	Created          int64    `json:"created"`
+	ScheduledFor     int64    `json:"scheduledFor,omitempty"`
 	Updated          int64    `json:"updated"`
 	Status           string   `json:"status"`
 	Stage            string   `json:"stage"`
@@ -176,6 +191,7 @@ type Episode struct {
 	Warnings         []string `json:"warnings"`
 	Research         string   `json:"research,omitempty"`
 	Script           Script   `json:"script"`
+	LengthNote       string   `json:"lengthNote,omitempty"`
 	Review           Review   `json:"review"`
 	Duration         float64  `json:"duration"`
 	AudioBytes       int64    `json:"audioBytes"`
@@ -187,9 +203,14 @@ func webURL(raw string) bool {
 	u, e := url.Parse(raw)
 	return e == nil && u.Scheme == "https" && u.User == nil && u.Host != "" && u.Port() == "" && !strings.ContainsAny(raw, "\r\n\\")
 }
-func validateScript(s Script, sources []Source, minutes int) error {
+
+const minimumEpisodeWords = 145
+
+var errScriptTooLong = errors.New("The script exceeds the maximum supported episode length")
+
+func validateScript(s Script, sources []Source) (int, error) {
 	if len(s.Title) < 3 || len(s.Title) > 180 || len(s.Summary) > 1800 || len(s.Segments) < 3 || len(s.Segments) > 14 {
-		return errors.New("The script did not have a complete episode structure")
+		return 0, errors.New("The script did not have a complete episode structure")
 	}
 	ids := map[string]bool{}
 	for _, x := range sources {
@@ -200,41 +221,41 @@ func validateScript(s Script, sources []Source, minutes int) error {
 	counts := map[string]int{}
 	speakers := map[string]bool{}
 	if s.Segments[0].Kind != "hook" || s.Segments[len(s.Segments)-1].Kind != "outro" {
-		return errors.New("The episode needs a cold open and a clear ending")
+		return 0, errors.New("The episode needs a cold open and a clear ending")
 	}
 	for _, seg := range s.Segments {
 		if seg.Kind != "hook" && seg.Kind != "intro" && seg.Kind != "story" && seg.Kind != "analysis" && seg.Kind != "outro" {
-			return errors.New("Unknown chapter type")
+			return 0, errors.New("Unknown chapter type")
 		}
 		counts[seg.Kind]++
 		if len(seg.Title) == 0 || len(seg.Title) > 160 || len(seg.Turns) == 0 || len(seg.Turns) > 48 {
-			return errors.New("Invalid episode chapter")
+			return 0, errors.New("Invalid episode chapter")
 		}
 		for _, t := range seg.Turns {
 			speakers[t.Speaker] = true
 			turns++
 			words += len(strings.Fields(t.Text))
 			if t.Speaker != "Alex" && t.Speaker != "Jamie" {
-				return errors.New("Unknown narrator")
+				return 0, errors.New("Unknown narrator")
 			}
-			if len(t.Text) == 0 || len(t.Text) > 3500 {
-				return errors.New("Narration chunk was too long or empty")
+			if strings.TrimSpace(t.Text) == "" || len(t.Text) > 3500 {
+				return 0, errors.New("Narration chunk was too long or empty")
 			}
 			if (seg.Kind == "story" || seg.Kind == "analysis") && len(t.Sources) == 0 {
-				return errors.New("A story turn was missing its evidence links")
+				return 0, errors.New("A story turn was missing its evidence links")
 			}
 			for _, id := range t.Sources {
 				if !ids[id] {
-					return errors.New("The script referenced evidence outside its research dossier")
+					return 0, errors.New("The script referenced evidence outside its research dossier")
 				}
 			}
 		}
 	}
 	if counts["intro"] == 0 || counts["story"]+counts["analysis"] == 0 || len(speakers) != 2 {
-		return errors.New("The episode needs an introduction, reported story and two narrators")
+		return 0, errors.New("The episode needs an introduction, reported story and two narrators")
 	}
-	if turns > 220 || words < minutes*105 || words > minutes*185 {
-		return errors.New("The script missed the requested speaking length; retry generation")
+	if turns > 220 || words > 7400 {
+		return words, errScriptTooLong
 	}
-	return nil
+	return words, nil
 }
