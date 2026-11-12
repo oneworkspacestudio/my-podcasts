@@ -274,3 +274,13 @@ and a script accepted on the first pass. Uses synthetic NTFS data and provider
 responses. The local owner config read during diagnosis reported preview.3.
 Release and public-channel promotion are authorized by standing instructions.
 Applying the update to an owner installation requires an installation request.
+
+Preview.5 published and verified. Channel commit da36c4a selects the ten
+published assets and pins the verified archive for future builds. The older
+preview.122 installer correctly requests a newer installer after Workspace123
+raised the installer integration level. The exact published preview.123 installer selected
+and applied the 48 Podcasts payloads anonymously to a synthetic installation
+running manager122 and Podcasts4. The update preserved manager and Accounts
+bytes, identity, settings, schedule and provider connections. Rollback to
+Podcasts4 and shutdown passed. The sanitized three-daily delivery receipt is
+under docs/evidence. No owner installation or billed provider test was run.

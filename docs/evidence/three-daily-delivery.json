@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "release": "https://github.com/oneworkspacestudio/my-podcasts/releases/tag/v0.1.0-preview.5",
+  "installedWorkspaceVersionTested": "0.3.0-preview.122",
+  "publicUpdaterVersionTested": "0.3.0-preview.123",
+  "channelCommit": "da36c4a",
+  "public": {
+    "passed": true,
+    "tag": "v0.1.0-preview.5",
+    "sourceCommit": "2ec386dedd9dad5aae94672611ff8e2ccb565df0",
+    "executableSHA256": "f81476965ffea9764c6d629272ce0058dc93815e611c5518ff44d9545e3b4f73",
+    "archiveSHA256": "32d5420cbb0a0c8fbf9608ac363946f3dd37d88ac8dd792dd69088cea8324361",
+    "assetsVerified": 10,
+    "anonymousChannel": true,
+    "anonymousFullPackage": true,
+    "anonymousUpdateManifest": true
+  },
+  "managedPublicUpdate": {
+    "anonymousPlan": true,
+    "verifiedPayloads": 48,
+    "normalRecovery": true,
+    "rollback": true,
+    "passed": true,
+    "stopped": true,
+    "synthetic": true
+  },
+  "acceptance": {
+    "schema": 1,
+    "passed": true,
+    "version": "0.1.0-preview.5",
+    "executableSHA256": "f81476965ffea9764c6d629272ce0058dc93815e611c5518ff44d9545e3b4f73",
+    "goTestsAndVet": true,
+    "nativeBrowserScenariosPassed": 7,
+    "scheduledSlotsUTC": [
+      "07:00",
+      "15:00",
+      "23:00"
+    ],
+    "readyWAVsFromServerWorkerWhileSignedOut": 3,
+    "shorterDraftReviewedAndRecorded": true,
+    "OverlongDraftCorrectedBeforeRecording": true,
+    "managedFreshSetupUpgradeAndRollback": true,
+    "managedPayloadsVerified": 48,
+    "syntheticNTFSAccountsAndProviderFixtures": true,
+    "paidProviderGenerationExercised": false
+  },
+  "userInstallationUpdated": false,
+  "fixtureCleanup": {
+    "privateFixtureRemoved": true,
+    "syntheticOnly": true,
+    "passed": true,
+    "stopped": true,
+    "programFixtureRemoved": true
+  }
+}
