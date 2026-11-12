@@ -1,5 +1,16 @@
 # Acceptance
 
+## Preview.7 hosts and intro tracks
+
+The writer and both editors use story-first spoken dialogue, with each host
+introducing themselves in a turn assigned to their own voice. Synthetic
+mastering fixtures verify that an episode keeps its selected track through
+remastering and that the welcome starts after the hook and music. The browser
+can upload and turn off the account's tracks. Existing recordings are preserved.
+An isolated Windows fixture produced Alex and Jamie with the real Pocket CPU
+presets. The signed-out worker completed three scheduled WAVs and resumed
+an existing script using synthetic research and writing.
+
 ## Preview.6 local narration and unattended production
 
 On an isolated Windows fixture, the real My Voice CPU service produced valid

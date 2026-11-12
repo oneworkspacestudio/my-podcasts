@@ -211,7 +211,32 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                               )}
                             </Card>
                           </Row>
-                          <Text variant="small">Original AI-generated narrators. Every episode includes a spoken disclosure.</Text>
+                          <Text variant="small">AI-generated narration is labeled on episode pages and in exported transcripts.</Text>
+                          {data.localDuo && (
+                            <Text variant="small">Alex and Jamie use separate male and female voices.</Text>
+                          )}
+                        </Card>
+                        <Card variant="form">
+                          <Row variant="section-heading">
+                            <Heading level={2}>Intro tracks</Heading>
+                            {data.introsEnabled && (
+                              <Badge tone="mint">Active</Badge>
+                            )}
+                          </Row>
+                          <Text variant="small">Add two MP3 or WAV tracks. Each new episode plays one at random after the spoken cold open.</Text>
+                          <Row variant="form-row">
+                            <Input name="introFirst" type="file" accept=".mp3,.wav,audio/mpeg,audio/wav" label="First intro track" />
+                            <Input name="introSecond" type="file" accept=".mp3,.wav,audio/mpeg,audio/wav" label="Second intro track" />
+                          </Row>
+                          {data.introSelection && (
+                            <Text variant="small">{data.introSelection}</Text>
+                          )}
+                          <Row gap="sm">
+                            <Button intent="saveIntros" variant="quiet" disabled={data.introSaveDisabled}>Save intro tracks</Button>
+                            {data.introsEnabled && (
+                              <Button intent="removeIntros" variant="text" disabled={data.busy}>Turn off intros</Button>
+                            )}
+                          </Row>
                         </Card>
                         <Card variant="form">
                           <Row gap="sm">
@@ -394,6 +419,11 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                           {data.localSpeechSelected && (
                             <>
                               <Text>My Voice starts an installed speech model on this server when a turn is ready. No OpenAI key is needed for local narration.</Text>
+                              {data.localDuo ? (
+                                <Text variant="small">Alex and Jamie’s separate voices are ready.</Text>
+                              ) : (
+                                <Text variant="small">For male and female hosts, install or reinstall Pocket TTS in My Voice Settings.</Text>
+                              )}
                               {data.managedVoiceLink && (
                                 <Link href="/voice/" target="_blank" variant="quiet">Open My Voice</Link>
                               )}

@@ -38,6 +38,7 @@ type providers struct {
 	XToken           string `json:"xToken"`
 	Model            string `json:"model"`
 	TTSModel         string `json:"ttsModel"`
+	voiceCast        string
 	SpeechProvider   string `json:"speechProvider"`
 	VoiceURL         string `json:"voiceURL"`
 	VoiceToken       string `json:"voiceToken"`
@@ -56,7 +57,16 @@ type App struct {
 }
 
 func New(h *apphost.Host) (*App, error) {
-	if e := h.Migrate(1, schema); e != nil {
+	var version int
+	if e := h.DB.QueryRow("SELECT coalesce(max(version),0) FROM host_migrations").Scan(&version); e != nil {
+		return nil, e
+	}
+	if version == 0 {
+		if e := h.Migrate(1, schema); e != nil {
+			return nil, e
+		}
+	}
+	if e := h.Migrate(2, introSchema); e != nil {
 		return nil, e
 	}
 	a := &App{h: h, client: &http.Client{Timeout: 150 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return errors.New("redirect rejected") }}, wake: make(chan struct{}, 1), active: map[string]context.CancelFunc{}, apiBase: "https://api.openai.com/v1", p: providers{DeepSeekKey: os.Getenv("DEEPSEEK_API_KEY"), ServiceToken: os.Getenv("PODCASTS_AI_SERVICE_TOKEN"), Key: os.Getenv("OPENAI_API_KEY"), XToken: os.Getenv("PODCASTS_X_BEARER_TOKEN"), Model: "gpt-5.4", TTSModel: "gpt-4o-mini-tts"}}
@@ -95,6 +105,8 @@ func New(h *apphost.Host) (*App, error) {
 	h.Mux.HandleFunc("POST /api/providers/test", h.Owner(a.testConnection))
 	h.Mux.HandleFunc("GET /api/state", h.Require(a.state))
 	h.Mux.HandleFunc("PUT /api/settings", h.Require(a.settings))
+	h.Mux.HandleFunc("PUT /api/intros", h.Require(a.setIntros))
+	h.Mux.HandleFunc("DELETE /api/intros", h.Require(a.setIntros))
 	h.Mux.HandleFunc("PUT /api/providers", h.Owner(a.setProviders))
 	h.Mux.HandleFunc("POST /api/episodes", h.Require(a.enqueue))
 	h.Mux.HandleFunc("GET /api/episodes/{id}", h.Require(a.getEpisode))
@@ -388,7 +400,12 @@ func (a *App) state(w http.ResponseWriter, r *http.Request) {
 	a.mu.Unlock()
 	var next int64
 	_ = a.h.DB.QueryRow("SELECT next_run FROM podcast_settings WHERE user_id=?", u.ID).Scan(&next)
-	apphost.JSON(w, 200, map[string]any{"settings": s, "episodes": list, "people": People, "feeds": Feeds, "nextRun": next, "schedulePaused": next > 0 && paused, "provider": provider, "limits": map[string]int{"daily": 3, "queued": 3, "library": 50}})
+	var introsEnabled bool
+	if err := a.h.DB.QueryRow("SELECT count(*)=2 FROM podcast_intro_tracks WHERE user_id=? AND slot IS NOT NULL", u.ID).Scan(&introsEnabled); err != nil {
+		a.h.DBError(w, err)
+		return
+	}
+	apphost.JSON(w, 200, map[string]any{"settings": s, "episodes": list, "people": People, "feeds": Feeds, "nextRun": next, "schedulePaused": next > 0 && paused, "provider": provider, "introsEnabled": introsEnabled, "limits": map[string]int{"daily": 3, "queued": 3, "library": 50}})
 }
 func (a *App) save(e *Episode) error {
 	e.Updated = time.Now().Unix()
@@ -455,6 +472,16 @@ func createEpisode(tx *sql.Tx, user string, s Settings, now time.Time, scheduled
 	}
 	raw, _ := json.Marshal(e)
 	if _, err = tx.Exec("INSERT INTO podcast_episodes VALUES(?,?,?,?,?,?)", e.ID, user, e.Created, e.Updated, e.Status, string(raw)); err != nil {
+		return e, err
+	}
+	// Episode IDs are random hex. Their first digit selects a track by parity,
+	// and the transaction pins the exact version for later mastering.
+	slot := 1
+	if strings.ContainsRune("13579bdf", rune(e.ID[0])) {
+		slot = 2
+	}
+	if _, err = tx.Exec(`INSERT INTO podcast_episode_intros
+		SELECT ?,user_id,digest FROM podcast_intro_tracks WHERE user_id=? AND slot=?`, e.ID, user, slot); err != nil {
 		return e, err
 	}
 	if _, err = tx.Exec("INSERT INTO podcast_productions VALUES(?,?)", user, e.Created); err != nil {
@@ -609,7 +636,22 @@ func (a *App) deleteEpisode(w http.ResponseWriter, r *http.Request) {
 		apphost.Problem(w, 500, "Episode audio could not be removed")
 		return
 	}
-	if _, err = a.h.DB.Exec("DELETE FROM podcast_episodes WHERE id=?", e.ID); err != nil {
+	tx, err := a.h.DB.BeginTx(r.Context(), nil)
+	if err != nil {
+		a.h.DBError(w, err)
+		return
+	}
+	defer tx.Rollback()
+	if _, err = tx.Exec("DELETE FROM podcast_episode_intros WHERE episode_id=?", e.ID); err == nil {
+		_, err = tx.Exec("DELETE FROM podcast_episodes WHERE id=?", e.ID)
+	}
+	if err == nil {
+		err = pruneIntroTracks(tx, apphost.Current(r).User.ID)
+	}
+	if err == nil {
+		err = tx.Commit()
+	}
+	if err != nil {
 		a.h.DBError(w, err)
 		return
 	}

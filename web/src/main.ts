@@ -2,6 +2,7 @@ import React,{createElement as h,useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {Dashboard} from './generated/Dashboard';
 import {Actions} from './components/ui';
+import {normalizeIntro} from './intro-audio';
 import './style.css';
 type Obj=Record<string,any>;
 const base=new URL('./',location.href).pathname.replace(/\/$/,'');
@@ -29,12 +30,17 @@ const disconnects:Record<string,{flag:string;label:string}> = {
 function App(){
  const[page,setPage]=useState('library'),[state,setState]=useState<Obj>({episodes:[],people:[],feeds:[],provider:{}}),[form,setForm]=useState<Obj>(empty),[detail,setDetail]=useState<Obj|null>(null),[seek,setSeek]=useState<Obj>(),[loading,setLoading]=useState(true),[signedOut,setSignedOut]=useState(false),[boot,setBoot]=useState<Obj>({}),[owner,setOwner]=useState(false),[error,setError]=useState(''),[toast,setToast]=useState(''),[busy,setBusy]=useState(false),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[key,setKey]=useState(''),[xToken,setXToken]=useState(''),[model,setModel]=useState('gpt-5.4'),[ttsModel,setTTSModel]=useState('gpt-4o-mini-tts');
  const[connections,setConnections]=useState<Obj>({textProvider:'openai',researchProvider:'auto',deepSeekModel:'deepseek-v4-pro',deepSeekKey:'',serviceURL:'http://127.0.0.1:9042',serviceToken:'',speechProvider:'myvoice',voiceURL:'',voiceToken:''});
+ const [introFiles,setIntroFiles]=useState<{introFirst?:File;introSecond?:File}>({});
  const epoch=useRef(0),dirty=useRef(false),refreshSequence=useRef(0);
  const check=useRef<AbortController|null>(null);
  const [checking,setChecking]=useState(false);
  function stopCheck(){check.current?.abort();check.current=null;setChecking(false);}
- function expire(){epoch.current++;stopCheck();csrf='';setState({episodes:[],people:[],feeds:[],provider:{}});setDetail(null);setKey('');setXToken('');setPassword('');setConnections(c=>({...c,deepSeekKey:'',serviceToken:'',voiceToken:''}));setSignedOut(true);}
- async function api(path:string,method='GET',body?:unknown,signal?:AbortSignal){const res=await fetch(base+'/api/'+path,{method,signal,headers:method==='GET'?{}:{'Content-Type':'application/json','X-CSRF-Token':csrf},body:body===undefined?undefined:JSON.stringify(body)});const data=await res.json().catch(()=>({}));if(res.status===401){expire();throw new Error('Sign in to continue');}if(!res.ok)throw new Error(data.error||'Your studio could not connect. Please try again.');return data;}
+ function expire(){epoch.current++;stopCheck();csrf='';setState({episodes:[],people:[],feeds:[],provider:{}});setDetail(null);setKey('');setXToken('');setPassword('');setIntroFiles({});setConnections(c=>({...c,deepSeekKey:'',serviceToken:'',voiceToken:''}));setSignedOut(true);}
+ async function api(path:string,method='GET',body?:unknown,signal?:AbortSignal){
+  const multipart=body instanceof FormData;
+  const headers:Record<string,string>=method==='GET'?{}:{'X-CSRF-Token':csrf};
+  if(method!=='GET'&&!multipart)headers['Content-Type']='application/json';
+  const res=await fetch(base+'/api/'+path,{method,signal,headers,body:multipart?body:body===undefined?undefined:JSON.stringify(body)});const data=await res.json().catch(()=>({}));if(res.status===401){expire();throw new Error('Sign in to continue');}if(!res.ok)throw new Error(data.error||'Your studio could not connect. Please try again.');return data;}
  async function refresh(initial=false){
   const current=epoch.current,sequence=++refreshSequence.current;
   const latest=()=>current===epoch.current&&sequence===refreshSequence.current;
@@ -61,13 +67,35 @@ function App(){
  useEffect(()=>{if(signedOut||loading)return;let live=true;const timer=setInterval(()=>{if(live)void refresh().catch(e=>setError((e as Error).message));},5000);return()=>{live=false;clearInterval(timer);};},[signedOut,loading,detail?.id]);
  useEffect(()=>{if(!toast)return;const t=setTimeout(()=>setToast(''),5000);return()=>clearTimeout(t);},[toast]);
  useEffect(()=>{if(page!=='detail')setSeek(undefined);window.scrollTo({top:0,behavior:'instant'});},[page]);
- function change(name:string,value:string|boolean){if(['textProvider','researchProvider','deepSeekModel','deepSeekKey','serviceURL','serviceToken','speechProvider','voiceURL','voiceToken'].includes(name)){setConnections(c=>({...c,[name]:value}));return;}if(name==='email'){setEmail(String(value));return;}if(name==='password'){setPassword(String(value));return;}if(name==='key'){setKey(String(value));return;}if(name==='xToken'){setXToken(String(value));return;}if(name==='model'){setModel(String(value));return;}if(name==='ttsModel'){setTTSModel(String(value));return;}dirty.current=true;if(name.startsWith('person:')||name.startsWith('feed:')){const[category,id]=name.split(':'),field=category==='person'?'people':'feeds';setForm(f=>({...f,[field]:value?[...f[field],id]:f[field].filter((x:string)=>x!==id)}));return;}setForm(f=>({...f,[name]:['minutes','lookbackHours'].includes(name)?Number(value):value}));}
+ function change(name:string,value:string|boolean|File|null){
+  if(name==='introFirst'||name==='introSecond'){
+   setIntroFiles(files=>({...files,[name]:value instanceof File?value:undefined}));return;
+  }
+  if(typeof value!=='string'&&typeof value!=='boolean')return;
+  if(['textProvider','researchProvider','deepSeekModel','deepSeekKey','serviceURL','serviceToken','speechProvider','voiceURL','voiceToken'].includes(name)){setConnections(c=>({...c,[name]:value}));return;}if(name==='email'){setEmail(String(value));return;}if(name==='password'){setPassword(String(value));return;}if(name==='key'){setKey(String(value));return;}if(name==='xToken'){setXToken(String(value));return;}if(name==='model'){setModel(String(value));return;}if(name==='ttsModel'){setTTSModel(String(value));return;}dirty.current=true;if(name.startsWith('person:')||name.startsWith('feed:')){const[category,id]=name.split(':'),field=category==='person'?'people':'feeds';setForm(f=>({...f,[field]:value?[...f[field],id]:f[field].filter((x:string)=>x!==id)}));return;}setForm(f=>({...f,[name]:['minutes','lookbackHours'].includes(name)?Number(value):value}));}
  async function save(){await api('settings','PUT',form);dirty.current=false;await refresh();}
  async function act(intent:string,payload?:unknown){setError('');if(['library','studio','queue','sources','settings'].includes(intent)){setPage(intent);return;}if(busy)return;setBusy(true);try{
   if(intent==='login'){const r=await fetch(base+'/api/'+(boot.needsSetup?'setup':'login'),{method:'POST',headers:{'Content-Type':'application/json','X-Setup-Token':setupToken},body:JSON.stringify({email,password})});if(!r.ok)throw new Error(boot.needsSetup?'Open the private first-use link printed by the app and choose an email and a password of at least 12 characters.':'Sign-in failed. Check your email and password.');setPassword('');location.reload();return;}
   if(intent==='logout'){const r=await fetch(base+'/auth/logout',{method:'POST',headers:{'X-CSRF-Token':csrf}});if(!r.ok)throw new Error('Sign out failed. Please retry.');expire();return;}
   if(intent==='save'){await save();setToast('Your show settings and sources are saved.');}
   if(intent==='generate'){await save();await api('episodes','POST',{});setPage('queue');await refresh();setToast('Your episode is queued. You can close this tab.');}
+  if(intent==='saveIntros'){
+   const {introFirst,introSecond}=introFiles;
+   if(!introFirst||!introSecond)throw new Error('Choose two intro tracks.');
+   const [first,second]=await Promise.all([normalizeIntro(introFirst),normalizeIntro(introSecond)]);
+   const formData=new FormData();
+   formData.append('first',first,'first.wav');
+   formData.append('second',second,'second.wav');
+   await api('intros','PUT',formData);
+   setIntroFiles({});
+   await refresh();
+   setToast('Intro tracks saved for new episodes.');
+  }
+  if(intent==='removeIntros'){
+   await api('intros','DELETE');
+   await refresh();
+   setToast('New episodes will skip the intro track.');
+  }
   if(intent==='refresh')await refresh();
   if(intent==='open'){const d=await api('episodes/'+payload);setDetail(d);setPage('detail');}
   if(intent==='cancel'){await api('episodes/'+payload+'/cancel','POST',{});await refresh();}
@@ -113,6 +141,10 @@ function App(){
   connectionLabel:state.provider.textConfigured?'Configured':'Connection needed',connectionTone:state.provider.textConfigured?'mint':'amber',
   writerOptions:options({openai:'OpenAI',deepseek:'DeepSeek',aiservice:'AI Service · local Ollama'}),researchOptions:options({auto:'Automatic · selected writing provider',openai:'OpenAI web research',deepseek:'DeepSeek web search',feeds:'Selected feeds & direct X posts'}),
   deepSeekLabel:state.provider.deepSeekConfigured?'Connected':'Disconnected',serviceLabel:state.provider.serviceConfigured?'Connected':'Disconnected',speechLabel:state.provider.speechConfigured?'Ready':'Waiting for voices',xLabel:state.provider.xConnected?'Connected':'Disconnected',
+  introsEnabled:state.introsEnabled,
+  introSelection:[introFiles.introFirst?.name,introFiles.introSecond?.name].filter(Boolean).join(' · '),
+  introSaveDisabled:busy||!introFiles.introFirst||!introFiles.introSecond,
+  localDuo:state.provider.speechProvider==='myvoice'&&state.provider.voiceCast==='marius-alba-v1',
   cloudSpeech:state.provider.speechProvider==='openai',cloudSpeechDraft:connections.speechProvider==='openai',localSpeechSelected:connections.speechProvider==='myvoice',managedVoiceLink:boot.oidc,voiceConnected:state.provider.voiceConnected,speechIssue:state.provider.speechIssue,speechOptions:options({myvoice:'My Voice · local on this server',openai:'OpenAI speech · optional'}),
   deepSeekConnected:state.provider.deepSeekConfigured,serviceConnected:state.provider.serviceConfigured,openAIConnected:state.provider.connected,xConnected:state.provider.xConnected,
   researchCoverage:state.provider.researchMode==='feeds'?'Feed-based mode reads selected dated RSS sources and connected direct X posts. No indexed web/social search runs in this mode.':'Web research checks major reports, company announcements and accessible public posts. Missing, inaccessible and undated evidence is flagged.',

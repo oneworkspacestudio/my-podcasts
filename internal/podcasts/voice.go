@@ -19,6 +19,7 @@ var errVoiceUnavailable = errors.New("My Voice is temporarily unavailable")
 
 type voiceStatus struct {
 	Model string
+	Cast  string
 	Issue string
 }
 
@@ -83,6 +84,7 @@ func (a *App) probeVoice(ctx context.Context, p providers) voiceStatus {
 		Protocol int
 		Ready    bool
 		Model    string
+		Cast     string
 	}
 	if res.StatusCode != 200 || json.NewDecoder(io.LimitReader(res.Body, 4096)).Decode(&status) != nil || status.Protocol != 1 {
 		return voiceStatus{Issue: "Update My Voice to a version that supports local Podcasts narration"}
@@ -90,7 +92,10 @@ func (a *App) probeVoice(ctx context.Context, p providers) voiceStatus {
 	if !status.Ready || !safeModel.MatchString(status.Model) {
 		return voiceStatus{Issue: "Install an English speech model in My Voice Settings"}
 	}
-	return voiceStatus{Model: status.Model}
+	if !safeModel.MatchString(status.Cast) {
+		status.Cast = ""
+	}
+	return voiceStatus{Model: status.Model, Cast: status.Cast}
 }
 
 func (a *App) refreshVoice(ctx context.Context) {
@@ -126,7 +131,11 @@ func (a *App) speechIssueLocked(p providers) string {
 }
 
 func (a *App) localSpeech(ctx context.Context, p providers, t Turn) ([]byte, error) {
-	body, err := json.Marshal(map[string]string{"text": cleanTranscript(t.Text), "speaker": t.Speaker, "model": p.TTSModel})
+	turn := map[string]string{"text": cleanTranscript(t.Text), "speaker": t.Speaker, "model": p.TTSModel}
+	if p.voiceCast != "" {
+		turn["cast"] = p.voiceCast
+	}
+	body, err := json.Marshal(turn)
 	if err != nil {
 		return nil, err
 	}

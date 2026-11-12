@@ -99,6 +99,9 @@ func TestThreeDailyEditionsCompleteAsWAVWithoutSession(t *testing.T) {
 			}
 			switch {
 			case strings.Contains(payload.Input, "Write an original premium"):
+				if !strings.Contains(payload.Input, "leave self-introductions to the app") || strings.Contains(payload.Input, "with AI narration disclosure") {
+					t.Error("writer did not get the story-first host introduction policy")
+				}
 				drafts.Add(1)
 				edition := int((clock.Load()-first.Unix())/int64(threeDailySpacing/time.Second)) + 1
 				if !strings.Contains(payload.Input, fmt.Sprintf("edition %d of 3", edition)) {
@@ -126,6 +129,9 @@ func TestThreeDailyEditionsCompleteAsWAVWithoutSession(t *testing.T) {
 				}
 				body = mockResponse(string(raw))
 			case strings.Contains(payload.Input, "independent podcast editor"):
+				if !strings.Contains(payload.Input, reviewSpokenStyle) || strings.Contains(payload.Input, "AI disclosure or") {
+					t.Error("cloud review did not get the story-first narration policy")
+				}
 				reviews.Add(1)
 				body = mockResponse(`{"passed":true,"issues":[]}`)
 			case strings.Contains(payload.Input, "research dossier"):

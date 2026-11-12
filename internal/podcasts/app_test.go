@@ -214,7 +214,7 @@ func sampleScript() Script {
 		}
 		turns = append(turns, Turn{Speaker: speaker, Text: strings.Repeat("Synthetic reporting gives this example enough speaking words for a complete test. ", 5), Sources: []string{"S1", "S2"}})
 	}
-	return Script{Title: "Synthetic technology conversation", Summary: "Synthetic production fixture; this is not a real news episode.", Segments: []Segment{{Title: "The central question", Kind: "hook", Turns: []Turn{{Speaker: "Alex", Text: "Which signal matters?", Sources: []string{}}}}, {Title: "Welcome", Kind: "intro", Turns: []Turn{{Speaker: "Jamie", Text: "We are AI-generated narrators, in a synthetic test.", Sources: []string{}}}}, {Title: "Synthetic story", Kind: "story", Turns: turns}, {Title: "What to watch", Kind: "outro", Turns: []Turn{{Speaker: "Jamie", Text: "Check the original evidence and watch what changes next.", Sources: []string{}}}}}}
+	return Script{Title: "Synthetic technology conversation", Summary: "Synthetic production fixture; this is not a real news episode.", Segments: []Segment{{Title: "The central question", Kind: "hook", Turns: []Turn{{Speaker: "Alex", Text: "Which signal matters?", Sources: []string{}}}}, {Title: "Welcome", Kind: "intro", Turns: []Turn{{Speaker: "Jamie", Text: "Let’s start with the signal that changed this week.", Sources: []string{}}}}, {Title: "Synthetic story", Kind: "story", Turns: turns}, {Title: "What to watch", Kind: "outro", Turns: []Turn{{Speaker: "Jamie", Text: "Check the original evidence and watch what changes next.", Sources: []string{}}}}}}
 }
 
 type transportFunc func(*http.Request) (*http.Response, error)

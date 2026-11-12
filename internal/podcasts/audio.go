@@ -3,6 +3,7 @@ package podcasts
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
@@ -16,7 +17,11 @@ const sampleRate = 24000
 
 func chunkName(p providers, s Settings, t Turn) string {
 	if p.SpeechProvider == "myvoice" {
-		h := sha256.Sum256([]byte("myvoice-pcm-v1\x00" + p.TTSModel + "\x00" + t.Speaker + "\x00" + t.Text))
+		engine := p.TTSModel
+		if p.voiceCast != "" {
+			engine += "\x00" + p.voiceCast
+		}
+		h := sha256.Sum256([]byte("myvoice-pcm-v1\x00" + engine + "\x00" + t.Speaker + "\x00" + t.Text))
 		return hex.EncodeToString(h[:]) + ".pcm"
 	}
 	voice := s.VoiceA
@@ -100,6 +105,12 @@ func wavHeader(size uint32) []byte {
 }
 func (a *App) master(ctx context.Context, p providers, e *Episode) error {
 	dir := a.objectDir(e.ID)
+	var intro []byte
+	err := a.h.DB.QueryRowContext(ctx, `SELECT t.pcm FROM podcast_episode_intros i
+		JOIN podcast_intro_tracks t USING(user_id,digest) WHERE i.episode_id=?`, e.ID).Scan(&intro)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
 	// Only immutable audio belongs in objects/, which apphost snapshots live.
 	// Build on the same private NTFS volume outside that snapshot allowlist,
 	// then atomically finalize under the backup freeze lock.
@@ -144,6 +155,13 @@ func (a *App) master(ctx context.Context, p providers, e *Episode) error {
 			return err
 		}
 		size += int64(len(silence))
+		if i == 0 && len(intro) > 0 {
+			balance(intro)
+			if _, err = f.Write(intro); err != nil {
+				return err
+			}
+			size += int64(len(intro))
+		}
 	}
 	if size < sampleRate*2 || size > uint32Max-36 {
 		return errors.New("Audio output exceeded the supported length")

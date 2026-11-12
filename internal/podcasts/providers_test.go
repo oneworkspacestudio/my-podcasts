@@ -264,6 +264,9 @@ func TestLocalEditorialBatchesLongScriptsAndRejectsTruncation(t *testing.T) {
 		if len(text) > 48000 {
 			t.Error("context budget exceeded")
 		}
+		if !truncated && !strings.Contains(text, reviewSpokenStyle) {
+			t.Error("local review did not get the story-first narration policy")
+		}
 		done := `"stop"`
 		if truncated {
 			done = `"length"`

@@ -151,7 +151,24 @@ Page Dashboard
                       Text variant=muted "Asks the next question. Tests the big claims and brings another perspective."
                       If condition=$cloudSpeech
                         Select name=voiceB value=$voiceB options=$voiceOptions label="Jamie’s voice"
-                  Text variant=small "Original AI-generated narrators. Every episode includes a spoken disclosure."
+                  Text variant=small "AI-generated narration is labeled on episode pages and in exported transcripts."
+                  If condition=$localDuo
+                    Text variant=small "Alex and Jamie use separate male and female voices."
+                Card variant=form
+                  Row variant=section-heading
+                    Heading level=2 "Intro tracks"
+                    If condition=$introsEnabled
+                      Badge tone=mint "Active"
+                  Text variant=small "Add two MP3 or WAV tracks. Each new episode plays one at random after the spoken cold open."
+                  Row variant=form-row
+                    Input name=introFirst type=file accept=".mp3,.wav,audio/mpeg,audio/wav" label="First intro track"
+                    Input name=introSecond type=file accept=".mp3,.wav,audio/mpeg,audio/wav" label="Second intro track"
+                  If condition=$introSelection
+                    Text variant=small "$introSelection"
+                  Row gap=sm
+                    Button intent=saveIntros variant=quiet disabled=$introSaveDisabled "Save intro tracks"
+                    If condition=$introsEnabled
+                      Button intent=removeIntros variant=text disabled=$busy "Turn off intros"
                 Card variant=form
                   Row gap=sm
                     Badge tone=blue "03"
@@ -276,6 +293,10 @@ Page Dashboard
                 Select name=speechProvider value=$speechProvider options=$speechOptions label="Speech provider"
                 If condition=$localSpeechSelected
                   Text "My Voice starts an installed speech model on this server when a turn is ready. No OpenAI key is needed for local narration."
+                  If condition=$localDuo
+                    Text variant=small "Alex and Jamie’s separate voices are ready."
+                  Else
+                    Text variant=small "For male and female hosts, install or reinstall Pocket TTS in My Voice Settings."
                   If condition=$managedVoiceLink
                     Link href="/voice/" target=_blank variant=quiet "Open My Voice"
                   Text variant=small "In My Voice → Settings → Podcasts narration, issue a credential. Paste it here and save connections."

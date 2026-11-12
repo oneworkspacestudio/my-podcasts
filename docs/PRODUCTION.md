@@ -36,13 +36,15 @@ identity, branding, catchphrases, recordings or host voices.
    episode records this limited coverage and requires at least three dated
    sources for the fallback. Social and company statements remain attributed.
 3. Use the selected OpenAI, DeepSeek or AI Service writer to generate a
-   structured, original Alex/Jamie script: cold open, introduction with
-   AI disclosure, reported chapters, analysis, counterpoint, next developments,
+   structured, original Alex/Jamie script: cold open, brief welcome, reported
+   chapters, analysis, counterpoint, next developments,
    close. Enforce narrator names, chapter structure, word range, chunk limits and
    evidence IDs. When a coherent draft misses the target duration, the writer
    gets one chance to adjust. A usable draft can still move to editorial
    review, and the episode explains when it may be shorter or longer than
    requested. News and page content are untrusted data, never instructions.
+   Each host introduces themselves in their own voice. Production notes stay
+   out of dialogue. The episode page and exported transcript label AI narration.
 4. Run a separate AI editorial consistency check against the dossier. Failed
    drafts stop before speech synthesis. Users can inspect notes and regenerate.
    This check is not independent fact verification or a guarantee of accuracy.
@@ -59,8 +61,18 @@ identity, branding, catchphrases, recordings or host voices.
 
 The duration setting is a script target, not a guaranteed audio duration. Different
 speech rates affect the final result. Narration uses stock presets and two
-delivery styles. My Voice selects an installed engine in the order Pocket 18,
-Pocket 7, MOSS, Qwen 0.6B and Qwen 1.7B.
+delivery styles. My Voice prefers an installed Pocket model with the Marius
+and Alba presets. Alex and Jamie use those separate male and female voices.
+Install or reinstall Pocket in My Voice Settings to add the pair.
+
+## Intro tracks
+
+In Create, save two MP3 or WAV clips of 1–60 seconds under Intro tracks.
+The browser decodes and downmixes the clips to 24 kHz PCM before uploading
+them to your private Workspace account. One is randomly selected and pinned
+when an episode is queued. It plays after the cold open and before the
+hosts’ welcome. Chapter times include the music. Replacing or turning off
+intros affects newly queued episodes.
 
 ## Background behavior
 
