@@ -38,6 +38,8 @@ func fixture(t *testing.T) (*App, *apphost.Host, *http.Cookie, apphost.Session) 
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Existing cloud regression fixtures explicitly select the optional provider.
+	a.p.SpeechProvider = "openai"
 	w := request(h, "POST", "/api/login", map[string]string{"email": "podcast-test@example.invalid", "password": "Synthetic-podcast-only-2026!"}, nil, "")
 	if w.Code != 200 {
 		t.Fatal(w.Body.String())

@@ -38,16 +38,21 @@ type providers struct {
 	XToken           string `json:"xToken"`
 	Model            string `json:"model"`
 	TTSModel         string `json:"ttsModel"`
+	SpeechProvider   string `json:"speechProvider"`
+	VoiceURL         string `json:"voiceURL"`
+	VoiceToken       string `json:"voiceToken"`
 }
 type App struct {
-	h       *apphost.Host
-	client  *http.Client
-	mu      sync.Mutex
-	p       providers
-	key     []byte
-	wake    chan struct{}
-	active  map[string]context.CancelFunc
-	apiBase string
+	h           *apphost.Host
+	client      *http.Client
+	mu          sync.Mutex
+	p           providers
+	key         []byte
+	wake        chan struct{}
+	active      map[string]context.CancelFunc
+	apiBase     string
+	voiceClient *http.Client
+	voice       voiceStatus
 }
 
 func New(h *apphost.Host) (*App, error) {
@@ -78,6 +83,12 @@ func New(h *apphost.Host) (*App, error) {
 		return nil, e
 	}
 	normalizeProviders(&a.p)
+	if a.p.VoiceURL == "" {
+		a.p.VoiceURL = defaultVoiceURL(h.Config.Listen, h.Config.Issuer != "")
+	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
+	a.voiceClient = &http.Client{Timeout: 4*time.Minute + 5*time.Second, Transport: transport, CheckRedirect: a.client.CheckRedirect}
 	if !validServiceURL(a.p.ServiceURL) {
 		return nil, errors.New("Configure a loopback AI Service URL with an explicit port")
 	}
@@ -133,6 +144,10 @@ func (a *App) setProviders(w http.ResponseWriter, r *http.Request) {
 		TTSModel         string `json:"ttsModel"`
 		ClearKey         bool   `json:"clearKey"`
 		ClearX           bool   `json:"clearX"`
+		SpeechProvider   string `json:"speechProvider"`
+		VoiceURL         string `json:"voiceURL"`
+		VoiceToken       string `json:"voiceToken"`
+		ClearVoice       bool   `json:"clearVoice"`
 	}
 	if !apphost.Decode(w, r, &in) {
 		return
@@ -227,6 +242,34 @@ func (a *App) setProviders(w http.ResponseWriter, r *http.Request) {
 	if in.TTSModel != "" {
 		p.TTSModel = in.TTSModel
 	}
+	if in.SpeechProvider != "" {
+		if in.SpeechProvider != "myvoice" && in.SpeechProvider != "openai" {
+			apphost.Problem(w, 400, "Choose My Voice or OpenAI speech")
+			return
+		}
+		p.SpeechProvider = in.SpeechProvider
+	}
+	if in.VoiceURL != "" {
+		address := strings.TrimRight(strings.TrimSpace(in.VoiceURL), "/")
+		if !validVoiceURL(address) {
+			apphost.Problem(w, 400, "My Voice needs a loopback IP address and explicit port")
+			return
+		}
+		if p.VoiceURL != address {
+			p.VoiceToken = ""
+		}
+		p.VoiceURL = address
+	}
+	if in.VoiceToken != "" {
+		p.VoiceToken = strings.TrimSpace(in.VoiceToken)
+		if !validVoiceToken(p.VoiceToken) {
+			apphost.Problem(w, 400, "Use the credential issued in My Voice Settings")
+			return
+		}
+	}
+	if in.ClearVoice {
+		p.VoiceToken = ""
+	}
 	raw, _ := json.Marshal(p)
 	enc, e := a.crypt(raw, true)
 	if e == nil {
@@ -237,15 +280,19 @@ func (a *App) setProviders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.p = p
+	if previous.VoiceToken != p.VoiceToken || previous.VoiceURL != p.VoiceURL {
+		a.voice = voiceStatus{}
+	}
 	if revoked(previous.Key, p.Key) || revoked(previous.DeepSeekKey, p.DeepSeekKey) ||
 		revoked(previous.ServiceToken, p.ServiceToken) || revoked(previous.XToken, p.XToken) ||
-		(previous.ServiceToken != "" && previous.ServiceURL != p.ServiceURL) {
+		(previous.ServiceToken != "" && previous.ServiceURL != p.ServiceURL) ||
+		revoked(previous.VoiceToken, p.VoiceToken) || previous.SpeechProvider != p.SpeechProvider {
 		for _, cancel := range a.active {
 			cancel()
 		}
 	}
 	a.h.Audit(apphost.Current(r).User.ID, "providers-updated", "podcasts")
-	apphost.JSON(w, 200, map[string]any{"saved": true, "provider": providerInfo(p)})
+	apphost.JSON(w, 200, map[string]any{"saved": true, "provider": a.providerInfoLocked()})
 	a.signal()
 }
 func revoked(previous, current string) bool {
@@ -291,10 +338,6 @@ func (a *App) settings(w http.ResponseWriter, r *http.Request) {
 	if s.Schedule == "off" {
 		due = 0
 	} else if changedSchedule || due <= 0 {
-		if err := a.p.productionError(true); err != nil {
-			apphost.Problem(w, 409, err.Error())
-			return
-		}
 		due = nextRun(s, time.Now())
 	}
 	raw, _ := json.Marshal(s)
@@ -339,10 +382,13 @@ func (a *App) state(w http.ResponseWriter, r *http.Request) {
 		a.h.DBError(w, rows.Err())
 		return
 	}
-	p := a.provider()
+	a.mu.Lock()
+	provider := a.providerInfoLocked()
+	paused := a.p.productionError() != nil || a.speechIssueLocked(a.p) != ""
+	a.mu.Unlock()
 	var next int64
 	_ = a.h.DB.QueryRow("SELECT next_run FROM podcast_settings WHERE user_id=?", u.ID).Scan(&next)
-	apphost.JSON(w, 200, map[string]any{"settings": s, "episodes": list, "people": People, "feeds": Feeds, "nextRun": next, "schedulePaused": next > 0 && p.productionError(true) != nil, "provider": providerInfo(p), "limits": map[string]int{"daily": 3, "queued": 3, "library": 50}})
+	apphost.JSON(w, 200, map[string]any{"settings": s, "episodes": list, "people": People, "feeds": Feeds, "nextRun": next, "schedulePaused": next > 0 && paused, "provider": provider, "limits": map[string]int{"daily": 3, "queued": 3, "library": 50}})
 }
 func (a *App) save(e *Episode) error {
 	e.Updated = time.Now().Unix()
@@ -435,7 +481,7 @@ func (s intScanner) Scan(v any) error {
 	return errors.New("invalid count")
 }
 func (a *App) enqueue(w http.ResponseWriter, r *http.Request) {
-	if err := a.provider().productionError(false); err != nil {
+	if err := a.provider().productionError(); err != nil {
 		apphost.Problem(w, 409, err.Error())
 		return
 	}
@@ -494,14 +540,16 @@ func (a *App) retry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !textComplete(e) {
-		if err := a.p.productionError(false); err != nil {
+		if err := a.p.productionError(); err != nil {
 			apphost.Problem(w, 409, err.Error())
 			return
 		}
 	}
-	if textComplete(e) && a.p.Key == "" {
-		apphost.Problem(w, 409, "Connect an OpenAI API key for narration, then resume the saved script")
-		return
+	if textComplete(e) {
+		if issue := a.speechIssueLocked(a.p); issue != "" {
+			apphost.Problem(w, 409, issue)
+			return
+		}
 	}
 	var count int
 	_ = a.h.DB.QueryRow("SELECT count(*) FROM podcast_episodes WHERE user_id=? AND status IN ('queued','running')", apphost.Current(r).User.ID).Scan(&count)
@@ -536,6 +584,7 @@ func (a *App) retry(w http.ResponseWriter, r *http.Request) {
 	e.Status = "queued"
 	e.Stage = "Resuming saved progress"
 	e.Error = ""
+	e.VoiceRetryAt = 0
 	if err = a.save(&e); err != nil {
 		a.h.DBError(w, err)
 		return

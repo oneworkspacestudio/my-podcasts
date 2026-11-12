@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-var version = "0.1.0-preview.5"
+var version = "0.1.0-preview.6"
 
 func main() {
 	has := false

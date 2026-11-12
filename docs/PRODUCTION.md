@@ -46,19 +46,21 @@ identity, branding, catchphrases, recordings or host voices.
 4. Run a separate AI editorial consistency check against the dossier. Failed
    drafts stop before speech synthesis. Users can inspect notes and regenerate.
    This check is not independent fact verification or a guarantee of accuracy.
-5. If the OpenAI speech key is missing, save the completed script and editorial
-   check as awaiting voices, with transcript/source export. Resume does not repeat
-   text inference or consume another daily research allowance. Otherwise render
-   each speaker turn via speech synthesis, retaining immutable PCM chunks
-   keyed by text, voice, model and delivery instructions. Resume cached chunks.
+5. Render each speaker turn through the selected speech service. My Voice is
+   the default and starts an installed local model on demand. OpenAI speech
+   can be selected in Narration settings. If speech is unavailable, save the
+   reviewed script for automatic resume when the local connection is ready.
+   Resuming reuses saved text inference and the original research allowance.
+   Private PCM chunks are keyed by provider, model, speaker, delivery and text.
 6. Balance each chunk at a conservative -19 dBFS RMS target with a -1 dBFS peak
    ceiling, brief fades and conversational pauses. Export mono 24 kHz / 16-bit
    uncompressed WAV and derive chapter times from actual audio sample counts.
    This is amplitude balancing, not measured/certified integrated LUFS mastering.
 
 The duration setting is a script target, not a guaranteed audio duration. Different
-speech rates affect the final result. OpenAI's normal stock voices are used;
-no custom/cloned voices, licensed music or advertisements are included.
+speech rates affect the final result. Narration uses stock presets and two
+delivery styles. My Voice selects an installed engine in the order Pocket 18,
+Pocket 7, MOSS, Qwen 0.6B and Qwen 1.7B.
 
 ## Background behavior
 
@@ -93,8 +95,8 @@ Provider contracts: [web search](https://developers.openai.com/api/docs/guides/t
 DeepSeek uses its official fixed HTTPS endpoints: `/responses` with JSON Schema
 for writing/editorial work and `/v1/tools/search` for bounded live retrieval. The
 writing model is configurable; the default is `deepseek-v4-pro`. Search is not
-coupled to the writing model’s built-in tool support. No OpenAI credential is
-sent to DeepSeek, and the speech adapter always uses the OpenAI voice key.
+coupled to the writing model’s built-in tool support. DeepSeek receives only
+its own credential. Narration is configured independently.
 See [DeepSeek Responses](https://api-docs.deepseek.com/guides/responses_api/)
 and [Search](https://api-docs.deepseek.com/guides/search/).
 

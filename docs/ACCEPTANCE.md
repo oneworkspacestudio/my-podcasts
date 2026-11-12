@@ -1,5 +1,14 @@
 # Acceptance
 
+## Preview.6 local narration and unattended production
+
+On an isolated Windows fixture, the real My Voice CPU service produced valid
+24 kHz PCM with MOSS and both Pocket narrator styles. With synthetic research
+and writing and no browser session, the Podcasts worker generated three WAV
+editions at three simulated UTC slots and resumed one legacy reviewed script.
+The check also exercised direct authorization, proxy rejection and revocation.
+Seven Podcasts browser regressions and 19 My Voice browser regressions passed.
+
 ## Preview.5 script length and three daily episodes
 
 The worker tries one length correction before keeping a coherent draft for

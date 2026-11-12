@@ -15,6 +15,10 @@ import (
 const sampleRate = 24000
 
 func chunkName(p providers, s Settings, t Turn) string {
+	if p.SpeechProvider == "myvoice" {
+		h := sha256.Sum256([]byte("myvoice-pcm-v1\x00" + p.TTSModel + "\x00" + t.Speaker + "\x00" + t.Text))
+		return hex.EncodeToString(h[:]) + ".pcm"
+	}
 	voice := s.VoiceA
 	if t.Speaker == "Jamie" {
 		voice = s.VoiceB
@@ -31,7 +35,13 @@ func (a *App) narrate(ctx context.Context, p providers, e *Episode, t Turn) erro
 	if t.Speaker == "Jamie" {
 		voice = e.Settings.VoiceB
 	}
-	b, err := a.post(ctx, p, "/audio/speech", map[string]any{"model": p.TTSModel, "voice": voice, "input": cleanTranscript(t.Text), "instructions": speechInstructions(t.Speaker), "response_format": "pcm", "speed": 1.0}, 16<<20)
+	var b []byte
+	var err error
+	if p.SpeechProvider == "myvoice" {
+		b, err = a.localSpeech(ctx, p, t)
+	} else {
+		b, err = a.post(ctx, p, "/audio/speech", map[string]any{"model": p.TTSModel, "voice": voice, "input": cleanTranscript(t.Text), "instructions": speechInstructions(t.Speaker), "response_format": "pcm", "speed": 1.0}, 16<<20)
+	}
 	if err != nil {
 		return err
 	}

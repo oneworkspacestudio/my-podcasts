@@ -198,13 +198,17 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                               <Badge tone="blue">ALEX</Badge>
                               <Heading level={3}>The curious anchor</Heading>
                               <Text variant="muted">Makes the complicated feel clear. Connects the dots and keeps things moving.</Text>
-                              <Select name="voiceA" value={data.voiceA} options={data.voiceOptions} label="Alex’s voice" />
+                              {data.cloudSpeech && (
+                                <Select name="voiceA" value={data.voiceA} options={data.voiceOptions} label="Alex’s voice" />
+                              )}
                             </Card>
                             <Card variant="narrator">
                               <Badge tone="mint">JAMIE</Badge>
                               <Heading level={3}>The thoughtful challenger</Heading>
                               <Text variant="muted">Asks the next question. Tests the big claims and brings another perspective.</Text>
-                              <Select name="voiceB" value={data.voiceB} options={data.voiceOptions} label="Jamie’s voice" />
+                              {data.cloudSpeech && (
+                                <Select name="voiceB" value={data.voiceB} options={data.voiceOptions} label="Jamie’s voice" />
+                              )}
                             </Card>
                           </Row>
                           <Text variant="small">Original AI-generated narrators. Every episode includes a spoken disclosure.</Text>
@@ -223,7 +227,7 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                           )}
                           <Text variant="muted">{data.nextRunLabel}</Text>
                           <Text variant="small">Save show settings to enable automatic episodes. Your server adds each completed recording to the library while you’re away.</Text>
-                          <Text variant="small">Manual and scheduled episodes share the limit of 3 productions per 24 hours. The library holds up to 50 episodes. AI research and speech use your connected API billing.</Text>
+                          <Text variant="small">Manual and scheduled episodes share the limit of 3 productions per 24 hours. The library holds up to 50 episodes.</Text>
                         </Card>
                       </Stack>
                       <Stack variant="studio-aside" gap="md">
@@ -248,7 +252,7 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                             <Text variant="small">Configure your selected writing and research providers in Connections.</Text>
                           )}
                           {data.speechMissing && (
-                            <Text variant="small">Scripts can finish without voices. Connect OpenAI speech and resume when you’re ready to record.</Text>
+                            <Text variant="small">Scripts can finish without voices. Connect My Voice to record them on your server.</Text>
                           )}
                         </Card>
                       </Stack>
@@ -383,6 +387,30 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                       <>
                         <Card variant="form">
                           <Row variant="section-heading">
+                            <Heading level={2}>Narration</Heading>
+                            <Badge tone="blue">{data.speechLabel}</Badge>
+                          </Row>
+                          <Select name="speechProvider" value={data.speechProvider} options={data.speechOptions} label="Speech provider" />
+                          {data.localSpeechSelected && (
+                            <>
+                              <Text>My Voice starts an installed speech model on this server when a turn is ready. No OpenAI key is needed for local narration.</Text>
+                              {data.managedVoiceLink && (
+                                <Link href="/voice/" target="_blank" variant="quiet">Open My Voice</Link>
+                              )}
+                              <Text variant="small">In My Voice → Settings → Podcasts narration, issue a credential. Paste it here and save connections.</Text>
+                              <Input name="voiceURL" value={data.voiceURL} label="My Voice URL on this server" />
+                              <Input name="voiceToken" value={data.voiceToken} type="password" label="My Voice Podcasts credential" autoComplete="off" placeholder="Leave blank to keep the saved credential" />
+                              {data.voiceConnected && (
+                                <Button intent="disconnectVoice" variant="text" disabled={data.busy}>Disconnect My Voice</Button>
+                              )}
+                            </>
+                          )}
+                          {data.speechIssue && (
+                            <Text variant="small">{data.speechIssue}</Text>
+                          )}
+                        </Card>
+                        <Card variant="form">
+                          <Row variant="section-heading">
                             <Heading level={2}>DeepSeek</Heading>
                             <Badge tone="blue">{data.deepSeekLabel}</Badge>
                           </Row>
@@ -408,17 +436,15 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                           )}
                         </Card>
                         <Card variant="form">
-                          <Row variant="section-heading">
-                            <Heading level={2}>OpenAI · Voices & optional writing</Heading>
-                            <Badge tone="blue">{data.speechLabel}</Badge>
-                          </Row>
-                          <Text variant="muted">OpenAI provides the two narrator voices. Its key is also used when you select OpenAI for writing or web research. DeepSeek and AI Service handle text; they do not provide speech through these connections.</Text>
+                          <Row variant="section-heading"><Heading level={2}>OpenAI · Optional</Heading></Row>
+                          <Text variant="muted">Used only when you select OpenAI for writing, web research or narration.</Text>
                           <Input name="key" value={data.key} type="password" label="OpenAI API key" autoComplete="off" placeholder="Leave blank to keep the saved key" />
                           <Row variant="form-row">
                             <Input name="model" value={data.model} label="OpenAI research & writing model" />
-                            <Input name="ttsModel" value={data.ttsModel} label="Speech model" />
+                            {data.cloudSpeechDraft && (
+                              <Input name="ttsModel" value={data.ttsModel} label="OpenAI speech model" />
+                            )}
                           </Row>
-                          <Text variant="small">Without a voice key, manual production saves a reviewed script and waits for narration. Audio schedules require voices to be configured. Cloud API billing is separate from subscriptions.</Text>
                           {data.openAIConnected && (
                             <Button intent="disconnect" variant="text" disabled={data.busy}>Disconnect OpenAI</Button>
                           )}

@@ -143,12 +143,14 @@ Page Dashboard
                       Badge tone=blue "ALEX"
                       Heading level=3 "The curious anchor"
                       Text variant=muted "Makes the complicated feel clear. Connects the dots and keeps things moving."
-                      Select name=voiceA value=$voiceA options=$voiceOptions label="Alex’s voice"
+                      If condition=$cloudSpeech
+                        Select name=voiceA value=$voiceA options=$voiceOptions label="Alex’s voice"
                     Card variant=narrator
                       Badge tone=mint "JAMIE"
                       Heading level=3 "The thoughtful challenger"
                       Text variant=muted "Asks the next question. Tests the big claims and brings another perspective."
-                      Select name=voiceB value=$voiceB options=$voiceOptions label="Jamie’s voice"
+                      If condition=$cloudSpeech
+                        Select name=voiceB value=$voiceB options=$voiceOptions label="Jamie’s voice"
                   Text variant=small "Original AI-generated narrators. Every episode includes a spoken disclosure."
                 Card variant=form
                   Row gap=sm
@@ -161,7 +163,7 @@ Page Dashboard
                     Text "$editionTimes"
                   Text variant=muted "$nextRunLabel"
                   Text variant=small "Save show settings to enable automatic episodes. Your server adds each completed recording to the library while you’re away."
-                  Text variant=small "Manual and scheduled episodes share the limit of 3 productions per 24 hours. The library holds up to 50 episodes. AI research and speech use your connected API billing."
+                  Text variant=small "Manual and scheduled episodes share the limit of 3 productions per 24 hours. The library holds up to 50 episodes."
               Stack variant=studio-aside gap=md
                 Card variant=show-preview
                   Text variant=eyebrow "YOUR SHOW"
@@ -182,7 +184,7 @@ Page Dashboard
                   If condition=$needsConnection
                     Text variant=small "Configure your selected writing and research providers in Connections."
                   If condition=$speechMissing
-                    Text variant=small "Scripts can finish without voices. Connect OpenAI speech and resume when you’re ready to record."
+                    Text variant=small "Scripts can finish without voices. Connect My Voice to record them on your server."
           If condition=$showQueue
             Row variant=page-heading
               Stack gap=sm
@@ -269,6 +271,22 @@ Page Dashboard
             If condition=$isOwner
               Card variant=form
                 Row variant=section-heading
+                  Heading level=2 "Narration"
+                  Badge tone=blue "$speechLabel"
+                Select name=speechProvider value=$speechProvider options=$speechOptions label="Speech provider"
+                If condition=$localSpeechSelected
+                  Text "My Voice starts an installed speech model on this server when a turn is ready. No OpenAI key is needed for local narration."
+                  If condition=$managedVoiceLink
+                    Link href="/voice/" target=_blank variant=quiet "Open My Voice"
+                  Text variant=small "In My Voice → Settings → Podcasts narration, issue a credential. Paste it here and save connections."
+                  Input name=voiceURL value=$voiceURL label="My Voice URL on this server"
+                  Input name=voiceToken value=$voiceToken type=password label="My Voice Podcasts credential" autoComplete=off placeholder="Leave blank to keep the saved credential"
+                  If condition=$voiceConnected
+                    Button intent=disconnectVoice variant=text disabled=$busy "Disconnect My Voice"
+                If condition=$speechIssue
+                  Text variant=small "$speechIssue"
+              Card variant=form
+                Row variant=section-heading
                   Heading level=2 "DeepSeek"
                   Badge tone=blue "$deepSeekLabel"
                 Text variant=muted "Current web reporting and public posts through DeepSeek search, with structured scripts and an editorial pass. You can also use DeepSeek search with your local writer."
@@ -289,14 +307,13 @@ Page Dashboard
                   Button intent=disconnectService variant=text disabled=$busy "Disconnect AI Service"
               Card variant=form
                 Row variant=section-heading
-                  Heading level=2 "OpenAI · Voices & optional writing"
-                  Badge tone=blue "$speechLabel"
-                Text variant=muted "OpenAI provides the two narrator voices. Its key is also used when you select OpenAI for writing or web research. DeepSeek and AI Service handle text; they do not provide speech through these connections."
+                  Heading level=2 "OpenAI · Optional"
+                Text variant=muted "Used only when you select OpenAI for writing, web research or narration."
                 Input name=key value=$key type=password label="OpenAI API key" autoComplete=off placeholder="Leave blank to keep the saved key"
                 Row variant=form-row
                   Input name=model value=$model label="OpenAI research & writing model"
-                  Input name=ttsModel value=$ttsModel label="Speech model"
-                Text variant=small "Without a voice key, manual production saves a reviewed script and waits for narration. Audio schedules require voices to be configured. Cloud API billing is separate from subscriptions."
+                  If condition=$cloudSpeechDraft
+                    Input name=ttsModel value=$ttsModel label="OpenAI speech model"
                 If condition=$openAIConnected
                   Button intent=disconnect variant=text disabled=$busy "Disconnect OpenAI"
               Card variant=form

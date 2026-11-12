@@ -2,8 +2,8 @@
 
 Managed mode uses native Workspace apphost MyAccounts OIDC, exact
 `/podcasts/auth/callback`, owner binding, CSRF, expiry and sign-out. The app listens
-only on loopback. No public API exemptions, bearer shortcuts or independent
-managed login are added. The header Apps control opens the shared picker.
+only on loopback. The header Apps control opens the shared picker. Podcasts
+calls the direct My Voice listener using an owner-issued local speech grant.
 Standalone first-use setup is apphost's loopback token flow only.
 
 All settings, research, queue rows, logs, provider encryption key and audio
@@ -35,22 +35,22 @@ may select another service model or inherit My AI’s managed credential. The
 connection-check action is owner/CSRF-protected, sends one brief text request and
 returns no provider response or secret. Disconnect cancels active production. User text is never
 executed as code or shell commands. Retrieved text is untrusted evidence. Audio
-processing is built into Go; no FFmpeg, browser, Node, Python, Docker or dynamic
-executable download is required at runtime.
+mastering runs in Go. My Voice supplies and supervises its app-local synthesis
+runtime and audio tools. The local speech client disables HTTP proxies and
+redirects. It requires a literal loopback address and stores its revocable
+credential in the encrypted provider record.
 
 The queue and library have limits; cancelling or deleting production requires
 authentication and CSRF. Deletion is only allowed after the worker stops. No
 public RSS publication, social posting or external sharing is implemented.
 Background work deliberately survives browser sign-out; use Cancel to stop it.
-Disconnecting OpenAI prevents new productions; an active request may already
-have been charged. API model access/billing and direct X access are external
-prerequisites, not suite-provided services.
+An in-flight cloud request may already have been charged before disconnect.
+Cloud API access and direct X access depend on the selected provider.
 
-DeepSeek/AI Service can prepare a reviewed script without an OpenAI voice key.
-The waiting state is durable; continuing its narration reuses saved inference.
-Scheduled audio production still requires text/research and speech connections.
-No automatic cloud fallback occurs when local inference fails or a grant is
-revoked. Feed-only mode does not pretend to search indexed social posts.
+Schedules persist during a missing speech connection. An awaiting-voice
+episode resumes from its durable reviewed script when My Voice is ready.
+Selecting My Voice keeps narration on the local server, including after a
+temporary failure or grant revocation.
 
 
 ## Recovery verification

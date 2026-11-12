@@ -19,11 +19,18 @@ its active Ollama model and shared queue. Automatic research uses that provider�
 web search, or selected feeds/direct X posts for the local service. You can also
 pair DeepSeek web search with the local writer.
 
-Choose your interests, people and publications, then generate. Narration uses a
-separate OpenAI voice connection. Without it, your reviewed script is saved until
-you connect voices and resume. Daily/weekly audio schedules require voices to be
-configured. Your server must remain running. Cloud API calls use provider billing;
-optional X API access improves direct-post coverage.
+Choose your interests, people and publications, then generate. Narration uses
+My Voice on the same Workspace server by default. Install a supported stock
+model in My Voice, then open **Settings → Podcasts narration** and issue a
+credential. In My Podcasts, open **Settings → Narration**, paste the credential
+and save the connection. The suggested address uses the managed My Voice port.
+
+In **Create → Background production**, choose **Three times daily** and save
+show settings. The schedule can be saved before the voice connection is ready.
+The server resumes reviewed scripts and picks up due production when My Voice
+is ready. Your Workspace server must stay running. OpenAI speech is optional.
+Cloud research and writing use provider billing. Optional X API access improves
+direct-post coverage.
 
 Install My Podcasts through [One Workspace](https://github.com/oneworkspacestudio/one-workspace).
 This evaluation release supports managed updates and private account storage.

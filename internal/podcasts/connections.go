@@ -19,6 +19,9 @@ import (
 type generationIdentity struct{}
 
 func normalizeProviders(p *providers) {
+	if p.SpeechProvider == "" {
+		p.SpeechProvider = "myvoice"
+	}
 	if p.TextProvider == "" {
 		p.TextProvider = "openai"
 	}
@@ -86,7 +89,7 @@ func (p providers) researchReady() bool {
 		return p.Key != ""
 	}
 }
-func (p providers) productionError(audio bool) error {
+func (p providers) productionError() error {
 	if !p.textReady() {
 		if p.TextProvider == "" || p.TextProvider == "openai" {
 			return errors.New("OpenAI is disconnected. Connect an OpenAI API key in Connections")
@@ -96,17 +99,18 @@ func (p providers) productionError(audio bool) error {
 	if !p.researchReady() {
 		return errors.New("Configure the selected research connection, or choose selected feeds and direct posts")
 	}
-	if audio && p.Key == "" {
-		return errors.New("Connect an OpenAI API key for narration before enabling background episode schedules")
-	}
 	return nil
 }
-func providerInfo(p providers) map[string]any {
+func (a *App) providerInfoLocked() map[string]any {
+	p := a.p
+	speechIssue := a.speechIssueLocked(p)
 	return map[string]any{
 		"connected": p.Key != "", "xConnected": p.XToken != "", "model": p.Model, "ttsModel": p.TTSModel,
 		"textProvider": p.TextProvider, "researchProvider": p.ResearchProvider, "researchMode": p.researchMode(), "deepSeekModel": p.DeepSeekModel,
 		"deepSeekConfigured": p.DeepSeekKey != "", "serviceConfigured": p.ServiceToken != "", "serviceURL": p.ServiceURL,
-		"textConfigured": p.textReady(), "researchConfigured": p.researchReady(), "speechConfigured": p.Key != "",
+		"textConfigured": p.textReady(), "researchConfigured": p.researchReady(), "speechConfigured": speechIssue == "",
+		"speechProvider": p.SpeechProvider, "speechIssue": speechIssue, "voiceURL": p.VoiceURL,
+		"voiceConnected": p.VoiceToken != "", "voiceModel": a.voice.Model,
 	}
 }
 

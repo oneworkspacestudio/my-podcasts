@@ -195,6 +195,7 @@ type Episode struct {
 	Review           Review   `json:"review"`
 	Duration         float64  `json:"duration"`
 	AudioBytes       int64    `json:"audioBytes"`
+	VoiceRetryAt     int64    `json:"voiceRetryAt,omitempty"`
 }
 
 var safeModel = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$`)

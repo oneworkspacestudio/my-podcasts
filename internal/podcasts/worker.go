@@ -53,6 +53,7 @@ func (a *App) run(ctx context.Context, now func() time.Time, ticks <-chan time.T
 		if ctx.Err() != nil {
 			return nil
 		}
+		a.refreshVoice(ctx)
 		if err = a.schedule(now()); err != nil {
 			a.h.Log.Error("podcast scheduler unavailable")
 		}
@@ -76,7 +77,15 @@ func (a *App) schedule(now time.Time) error {
 	defer a.h.Freeze.RUnlock()
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.p.productionError(true) != nil {
+	if a.speechIssueLocked(a.p) != "" {
+		return nil
+	}
+	if a.p.SpeechProvider == "myvoice" {
+		if err := a.resumeLocalSpeech(now); err != nil {
+			return err
+		}
+	}
+	if a.p.productionError() != nil {
 		return nil
 	}
 	rows, err := a.h.DB.Query("SELECT s.user_id,s.body,s.next_run FROM podcast_settings s JOIN host_users u ON u.id=s.user_id WHERE s.next_run>0 AND s.next_run<=? AND u.role!='disabled' ORDER BY s.next_run,s.user_id", now.Unix())
@@ -117,6 +126,27 @@ func (a *App) schedule(now time.Time) error {
 		}
 	}
 	return nil
+}
+
+func (a *App) resumeLocalSpeech(now time.Time) error {
+	var raw string
+	err := a.h.DB.QueryRow(`SELECT e.body FROM podcast_episodes e JOIN host_users u ON u.id=e.user_id
+WHERE e.status='awaiting_voice' AND u.role!='disabled' AND coalesce(json_extract(e.body,'$.voiceRetryAt'),0)<=?
+AND NOT EXISTS(SELECT 1 FROM podcast_episodes q WHERE q.user_id=e.user_id AND q.status IN ('queued','running'))
+AND (SELECT count(*) FROM podcast_episodes WHERE status IN ('queued','running'))<24
+ORDER BY e.created,e.id LIMIT 1`, now.Unix()).Scan(&raw)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var e Episode
+	if err := json.Unmarshal([]byte(raw), &e); err != nil {
+		return err
+	}
+	e.Status, e.Stage, e.Error, e.VoiceRetryAt = "queued", "Resuming with My Voice", "", 0
+	return a.save(&e)
 }
 func (a *App) enqueueScheduled(user string, settings Settings, now time.Time, scheduledFor int64) error {
 	tx, err := a.h.DB.Begin()
@@ -246,7 +276,7 @@ var errReview = errors.New("The editorial check found issues. Review the transcr
 
 func (a *App) produce(ctx context.Context, p providers, e *Episode) error {
 	if !textComplete(*e) {
-		if err := p.productionError(false); err != nil {
+		if err := p.productionError(); err != nil {
 			return err
 		}
 	}
@@ -301,12 +331,14 @@ func (a *App) produce(ctx context.Context, p providers, e *Episode) error {
 			return errReview
 		}
 	}
-	if p.Key == "" {
-		e.Status = "awaiting_voice"
-		e.Stage = "Script ready · connect narration to record"
-		e.Progress = 45
-		e.Error = "Connect an OpenAI API key for voices and resume. Your research, script and editorial check are saved."
-		return a.checkpoint(ctx, e)
+	if p.SpeechProvider == "myvoice" {
+		status := a.probeVoice(ctx, p)
+		if status.Model == "" {
+			return a.awaitVoice(ctx, e, status.Issue)
+		}
+		p.TTSModel = status.Model
+	} else if p.Key == "" {
+		return a.awaitVoice(ctx, e, "Connect voices in Connections. Your research and reviewed script are saved")
 	}
 	if err := os.MkdirAll(a.objectDir(e.ID), 0700); err != nil {
 		return err
@@ -324,6 +356,9 @@ func (a *App) produce(ctx context.Context, p providers, e *Episode) error {
 				return err
 			}
 			if err := a.narrate(ctx, p, e, t); err != nil {
+				if errors.Is(err, errVoiceUnavailable) {
+					return a.awaitVoice(ctx, e, "My Voice is busy or unavailable. Recording will resume automatically")
+				}
 				return err
 			}
 			done++
@@ -341,6 +376,16 @@ func (a *App) produce(ctx context.Context, p providers, e *Episode) error {
 	e.Stage = "Ready to listen"
 	e.Progress = 100
 	e.Error = ""
+	e.VoiceRetryAt = 0
+	return a.checkpoint(ctx, e)
+}
+
+func (a *App) awaitVoice(ctx context.Context, e *Episode, issue string) error {
+	e.Status = "awaiting_voice"
+	e.Stage = "Script ready · waiting for narration"
+	e.Progress = max(e.Progress, 45)
+	e.Error = issue
+	e.VoiceRetryAt = time.Now().Add(time.Minute).Unix()
 	return a.checkpoint(ctx, e)
 }
 func (a *App) writeObject(ctx context.Context, id, name string, b []byte) error {

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -15,7 +17,31 @@ import (
 
 func TestThreeDailyEditionsCompleteAsWAVWithoutSession(t *testing.T) {
 	a, h, cookie, session := fixture(t)
-	w := request(h, "PUT", "/api/providers", map[string]string{"key": "synthetic", "researchProvider": "feeds"}, cookie, session.CSRF)
+	var recordings atomic.Int32
+	voiceURL, voiceToken := os.Getenv("PODCASTS_TEST_VOICE_URL"), os.Getenv("PODCASTS_TEST_VOICE_TOKEN")
+	realVoice := voiceURL != ""
+	if !realVoice {
+		voiceToken = strings.Repeat("a", 64)
+		voice := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("Authorization") != "Bearer "+voiceToken {
+				w.WriteHeader(401)
+				return
+			}
+			switch r.URL.Path {
+			case "/_internal/podcasts/status":
+				io.WriteString(w, `{"protocol":1,"ready":true,"model":"pocket18"}`)
+			case "/_internal/podcasts/speech":
+				recordings.Add(1)
+				w.Header().Set("X-Voice-Sample-Rate", "24000")
+				w.Write(bytes.Repeat([]byte{0x10, 0x02}, 4096))
+			default:
+				w.WriteHeader(404)
+			}
+		}))
+		defer voice.Close()
+		voiceURL = voice.URL
+	}
+	w := request(h, "PUT", "/api/providers", map[string]string{"textProvider": "deepseek", "deepSeekKey": "synthetic", "researchProvider": "feeds", "speechProvider": "myvoice", "voiceURL": voiceURL, "voiceToken": voiceToken}, cookie, session.CSRF)
 	if w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
@@ -34,6 +60,23 @@ func TestThreeDailyEditionsCompleteAsWAVWithoutSession(t *testing.T) {
 	}
 
 	first := time.Now().UTC().Truncate(24 * time.Hour).Add(31 * time.Hour)
+	waiting, err := a.create(session.User.ID, settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	waiting.Status, waiting.Stage, waiting.Error = "awaiting_voice", "Script ready", "Connect an OpenAI API key for voices and resume"
+	waiting.Research = "Saved synthetic research"
+	waiting.Script = sampleScript()
+	waiting.Script.Title = "Previously reviewed script"
+	waiting.Script.Segments[2].Turns = waiting.Script.Segments[2].Turns[:3]
+	waiting.Review.Passed = true
+	if err := a.save(&waiting); err != nil {
+		t.Fatal(err)
+	}
+	// The previously requested script is from a prior day in the simulated clock.
+	if _, err := h.DB.Exec("UPDATE podcast_productions SET started=? WHERE user_id=?", first.Add(-48*time.Hour).Unix(), session.User.ID); err != nil {
+		t.Fatal(err)
+	}
 	var clock atomic.Int64
 	clock.Store(first.Unix())
 	ticks := make(chan time.Time, 1)
@@ -43,16 +86,13 @@ func TestThreeDailyEditionsCompleteAsWAVWithoutSession(t *testing.T) {
 		feed += fmt.Sprintf("<item><title>Synthetic report %d</title><link>https://example.com/%d</link><pubDate>%s</pubDate><description>Synthetic evidence.</description></item>", i, i, date)
 	}
 	feed += "</channel></rss>"
-	var drafts, reviews, recordings atomic.Int32
+	var drafts, reviews atomic.Int32
 	a.client = &http.Client{Transport: transportFunc(func(r *http.Request) (*http.Response, error) {
 		var body []byte
 		switch {
 		case r.URL.Host == "feeds.bbci.co.uk":
 			body = []byte(feed)
-		case r.URL.Path == "/v1/audio/speech":
-			recordings.Add(1)
-			body = bytes.Repeat([]byte{0x10, 0x02}, 4096)
-		case r.URL.Path == "/v1/responses":
+		case r.URL.Host == "api.deepseek.com" && r.URL.Path == "/responses":
 			var payload struct{ Input string }
 			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 				return nil, err
@@ -122,8 +162,12 @@ func TestThreeDailyEditionsCompleteAsWAVWithoutSession(t *testing.T) {
 			ticks <- slot
 		}
 		var ready int
-		for deadline := time.Now().Add(8 * time.Second); time.Now().Before(deadline); {
-			if err := h.DB.QueryRow("SELECT count(*) FROM podcast_episodes WHERE status='ready' AND user_id=?", session.User.ID).Scan(&ready); err != nil {
+		timeout := 8 * time.Second
+		if realVoice {
+			timeout = 4 * time.Minute
+		}
+		for deadline := time.Now().Add(timeout); time.Now().Before(deadline); {
+			if err := h.DB.QueryRow("SELECT count(*) FROM podcast_episodes WHERE status='ready' AND user_id=? AND id<>?", session.User.ID, waiting.ID).Scan(&ready); err != nil {
 				t.Fatal(err)
 			}
 			if ready >= edition {
@@ -146,10 +190,16 @@ func TestThreeDailyEditionsCompleteAsWAVWithoutSession(t *testing.T) {
 		NextRun  int64
 	}
 	w = request(h, "GET", "/api/state", nil, cookie, "")
-	if err := json.Unmarshal(w.Body.Bytes(), &state); err != nil || len(state.Episodes) != 3 || state.NextRun != first.Add(24*time.Hour).Unix() {
+	if err := json.Unmarshal(w.Body.Bytes(), &state); err != nil || len(state.Episodes) != 4 || state.NextRun != first.Add(24*time.Hour).Unix() {
 		t.Fatalf("expected three episodes and tomorrow's next slot, got %d and %d (%v)", len(state.Episodes), state.NextRun, err)
 	}
-	for i, episode := range state.Episodes {
+	old := state.Episodes[3]
+	audio := request(h, "GET", "/api/episodes/"+waiting.ID+"/audio", nil, cookie, "")
+	if old.ID != waiting.ID || old.Status != "ready" || old.Script.Title != waiting.Script.Title ||
+		audio.Code != 200 || !bytes.HasPrefix(audio.Body.Bytes(), []byte("RIFF")) {
+		t.Fatal("the reviewed script did not resume with local speech")
+	}
+	for i, episode := range state.Episodes[:3] {
 		edition := 3 - i
 		slot := first.Add(time.Duration(edition-1) * threeDailySpacing).Unix()
 		if episode.ScheduledFor != slot || episode.Status != "ready" || !episode.Review.Passed ||
@@ -164,8 +214,8 @@ func TestThreeDailyEditionsCompleteAsWAVWithoutSession(t *testing.T) {
 			t.Fatalf("edition %d did not return playable WAV audio", edition)
 		}
 	}
-	if drafts.Load() != 5 || reviews.Load() != 3 || recordings.Load() < 3 {
+	if drafts.Load() != 5 || reviews.Load() != 3 || (!realVoice && recordings.Load() < 3) {
 		t.Fatalf("expected five drafts and three editorial passes before speech, got %d/%d/%d", drafts.Load(), reviews.Load(), recordings.Load())
 	}
-	t.Log("Three distinct automatic episodes were generated and returned as WAV while the account was signed out")
+	t.Logf("Three automatic episodes returned WAV without OpenAI speech or a signed-in browser (native My Voice: %t)", realVoice)
 }
