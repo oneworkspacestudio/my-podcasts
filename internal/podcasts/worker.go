@@ -272,13 +272,60 @@ func (a *App) work(root context.Context) (bool, error) {
 	return true, nil
 }
 
-var errReview = errors.New("The editorial check found issues. Review the transcript and research, then regenerate before narration")
+var errReview = errors.New("The revised draft still needs changes. Open the episode for the editor’s notes")
 
-func (a *App) produce(ctx context.Context, p providers, e *Episode) error {
-	if !textComplete(*e) {
-		if err := p.productionError(); err != nil {
+func (a *App) reviewDraft(ctx context.Context, p providers, e *Episode) error {
+	e.Stage = "Checking the script against its sources"
+	e.Progress = 40
+	if err := a.checkpoint(ctx, e); err != nil {
+		return err
+	}
+	review, err := a.editorial(ctx, p, e)
+	if err != nil {
+		return err
+	}
+	e.Review = review
+	return a.checkpoint(ctx, e)
+}
+
+func (a *App) finishEditorial(ctx context.Context, p providers, e *Episode) error {
+	if len(e.Review.Issues) == 0 {
+		if err := a.reviewDraft(ctx, p, e); err != nil {
 			return err
 		}
+	}
+	if e.Review.Passed {
+		return nil
+	}
+	if e.EditorialRepairAttempted {
+		return errReview
+	}
+	e.Stage = "Revising the draft from the editor’s notes"
+	if err := a.checkpoint(ctx, e); err != nil {
+		return err
+	}
+	script, note, err := a.writeScript(ctx, p, e, e.Review.Issues)
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	e.EditorialRepairAttempted = true
+	if err != nil {
+		return fmt.Errorf("%w. The repair could not finish: %s", errReview, err)
+	}
+	e.Script, e.LengthNote, e.WriterProvider = script, note, p.TextProvider
+	e.Review = Review{}
+	if err = a.reviewDraft(ctx, p, e); err != nil {
+		return err
+	}
+	if !e.Review.Passed {
+		return errReview
+	}
+	return nil
+}
+
+func (a *App) produce(ctx context.Context, p providers, e *Episode) error {
+	if err := p.episodeTextError(*e); err != nil {
+		return err
 	}
 	if !validID(e.ID) {
 		return errors.New("Invalid episode ID")
@@ -302,7 +349,7 @@ func (a *App) produce(ctx context.Context, p providers, e *Episode) error {
 		if err := a.checkpoint(ctx, e); err != nil {
 			return err
 		}
-		s, note, err := a.writeScript(ctx, p, e)
+		s, note, err := a.writeScript(ctx, p, e, nil)
 		if err != nil {
 			return err
 		}
@@ -314,21 +361,8 @@ func (a *App) produce(ctx context.Context, p providers, e *Episode) error {
 		}
 	}
 	if !e.Review.Passed {
-		e.Stage = "Checking claims, attribution and pacing"
-		e.Progress = 40
-		if err := a.checkpoint(ctx, e); err != nil {
+		if err := a.finishEditorial(ctx, p, e); err != nil {
 			return err
-		}
-		review, err := a.editorial(ctx, p, e)
-		if err != nil {
-			return err
-		}
-		e.Review = review
-		if err = a.checkpoint(ctx, e); err != nil {
-			return err
-		}
-		if !review.Passed {
-			return errReview
 		}
 	}
 	if p.SpeechProvider == "myvoice" {

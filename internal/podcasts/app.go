@@ -566,11 +566,9 @@ func (a *App) retry(w http.ResponseWriter, r *http.Request) {
 		apphost.Problem(w, 409, "Only interrupted or failed productions can resume")
 		return
 	}
-	if !textComplete(e) {
-		if err := a.p.productionError(); err != nil {
-			apphost.Problem(w, 409, err.Error())
-			return
-		}
+	if err := a.p.episodeTextError(e); err != nil {
+		apphost.Problem(w, 409, err.Error())
+		return
 	}
 	if textComplete(e) {
 		if issue := a.speechIssueLocked(a.p); issue != "" {
@@ -593,23 +591,26 @@ func (a *App) retry(w http.ResponseWriter, r *http.Request) {
 		a.h.DBError(w, err)
 		return
 	}
-	if (daily >= 3 && e.Status != "awaiting_voice") || global >= 24 {
+	savedStage := e.Status == "awaiting_voice" || e.Status == "needs_review"
+	if (daily >= 3 && !savedStage) || global >= 24 {
 		apphost.Problem(w, 409, "Production limit reached; retry after your 24-hour allowance resets")
 		return
 	}
-	if e.Status != "awaiting_voice" {
+	if !savedStage {
 		if _, err = a.h.DB.Exec("INSERT INTO podcast_productions VALUES(?,?)", apphost.Current(r).User.ID, time.Now().Unix()); err != nil {
 			a.h.DBError(w, err)
 			return
 		}
 	}
-	if e.Status == "needs_review" {
-		e.Script = Script{}
-		e.LengthNote = ""
-		e.Review = Review{}
+	repairDraft := e.Status == "needs_review"
+	if repairDraft {
+		e.EditorialRepairAttempted = false
 	}
 	e.Status = "queued"
 	e.Stage = "Resuming saved progress"
+	if repairDraft {
+		e.Stage = "Draft repair queued"
+	}
 	e.Error = ""
 	e.VoiceRetryAt = 0
 	if err = a.save(&e); err != nil {

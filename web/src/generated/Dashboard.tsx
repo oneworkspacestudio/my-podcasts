@@ -312,7 +312,12 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                             <Text>{item.stage}</Text>
                             <Text variant="muted">{item.progress}% complete · {item.date}</Text>
                             {item.error && (
-                              <Alert tone="warning">{item.error}</Alert>
+                              <>
+                                <Alert tone="warning">{item.error}</Alert>
+                                {item.reviewNote && (
+                                  <Text variant="small">{item.reviewNote}</Text>
+                                )}
+                              </>
                             )}
                             <Row gap="sm">
                               <Button intent="open" payload={item.id} variant="quiet">View production</Button>
@@ -320,7 +325,7 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                                 <Button intent="cancel" payload={item.id} variant="text">Cancel production</Button>
                               )}
                               {item.retryable && (
-                                <Button intent="retry" payload={item.id} variant="primary">Resume / regenerate</Button>
+                                <Button intent="retry" payload={item.id} variant="primary">{item.retryLabel}</Button>
                               )}
                             </Row>
                           </Card>
@@ -548,7 +553,7 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                           <Button intent="cancel" payload={data.detailId} variant="quiet">Cancel production</Button>
                         )}
                         {data.detailRetryable && (
-                          <Button intent="retry" payload={data.detailId} variant="primary">Resume / regenerate</Button>
+                          <Button intent="retry" payload={data.detailId} variant="primary">{data.detailRetryLabel}</Button>
                         )}
                         {data.hasScript && (
                           <Row gap="sm">

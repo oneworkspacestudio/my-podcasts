@@ -1,5 +1,14 @@
 # Acceptance
 
+## Preview.8 editorial repair
+
+A synthetic unsupported claim is rejected, removed through a bounded
+revision, and rechecked before the episode reaches narration. A second
+rejection retains the actionable note and produces no audio. The same saved
+draft can be repaired at the episode limit with the research connection
+unavailable. Browser coverage checks the note and Repair draft action on
+an older saved rejection.
+
 ## Preview.7 hosts and intro tracks
 
 The writer and both editors use story-first spoken dialogue, with each host

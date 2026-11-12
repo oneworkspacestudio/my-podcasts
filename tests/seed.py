@@ -16,4 +16,11 @@ e=dict(id=episode_id,created=now,updated=now,status='ready',stage='Ready to list
 folder=root/'objects'/episode_id;folder.mkdir(parents=True,exist_ok=True)
 with wave.open(str(folder/'episode.wav'),'wb') as f:
  f.setnchannels(1);f.setsampwidth(2);f.setframerate(24000);f.writeframes(b''.join(struct.pack('<h',int(1500*math.sin(i*2*math.pi*220/24000))) for i in range(96000)))
-db.execute('INSERT INTO podcast_episodes VALUES(?,?,?,?,?,?)',(episode_id,owner,now,now,'ready',json.dumps(e)));db.commit();db.close()
+db.execute('INSERT INTO podcast_episodes VALUES(?,?,?,?,?,?)',(episode_id,owner,now,now,'ready',json.dumps(e)))
+rejected={**e,'id':'a2'*24,'status':'needs_review','progress':40,'stage':'Editorial review needs attention',
+          'error':'The editorial check found issues. Review the transcript and research, then regenerate before narration',
+          'script':{**e['script'],'title':'Synthetic draft needing repair'},
+          'review':{'passed':False,'issues':['Remove the unsupported shipping date from the opening story.']},
+          'duration':0,'audioBytes':0}
+db.execute('INSERT INTO podcast_episodes VALUES(?,?,?,?,?,?)',(rejected['id'],owner,now,now,'needs_review',json.dumps(rejected)))
+db.commit();db.close()

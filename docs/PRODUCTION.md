@@ -45,9 +45,12 @@ identity, branding, catchphrases, recordings or host voices.
    requested. News and page content are untrusted data, never instructions.
    Each host introduces themselves in their own voice. Production notes stay
    out of dialogue. The episode page and exported transcript label AI narration.
-4. Run a separate AI editorial consistency check against the dossier. Failed
-   drafts stop before speech synthesis. Users can inspect notes and regenerate.
-   This check is not independent fact verification or a guarantee of accuracy.
+4. Check the script against its cited evidence. If the editor flags a problem,
+   the worker uses the saved dossier and notes for one revision and checks
+   that revision again before recording. The revision can omit weak stories
+   and run shorter. When issues remain, the queue shows the first note.
+   **Repair draft** uses the saved research and notes without taking a new
+   episode slot. This is an AI consistency check, not independent verification.
 5. Render each speaker turn through the selected speech service. My Voice is
    the default and starts an installed local model on demand. OpenAI speech
    can be selected in Narration settings. If speech is unavailable, save the

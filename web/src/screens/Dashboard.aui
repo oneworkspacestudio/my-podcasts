@@ -226,12 +226,14 @@ Page Dashboard
                     Text variant=muted "$item.progress% complete · $item.date"
                     If condition=$item.error
                       Alert tone=warning "$item.error"
+                      If condition=$item.reviewNote
+                        Text variant=small "$item.reviewNote"
                     Row gap=sm
                       Button intent=open payload=$item.id variant=quiet "View production"
                       If condition=$item.running
                         Button intent=cancel payload=$item.id variant=text "Cancel production"
                       If condition=$item.retryable
-                        Button intent=retry payload=$item.id variant=primary "Resume / regenerate"
+                        Button intent=retry payload=$item.id variant=primary "$item.retryLabel"
           If condition=$showSources
             Row variant=page-heading
               Stack gap=sm
@@ -386,7 +388,7 @@ Page Dashboard
                 If condition=$detailRunning
                   Button intent=cancel payload=$detailId variant=quiet "Cancel production"
                 If condition=$detailRetryable
-                  Button intent=retry payload=$detailId variant=primary "Resume / regenerate"
+                  Button intent=retry payload=$detailId variant=primary "$detailRetryLabel"
                 If condition=$hasScript
                   Row gap=sm
                     Link href=$transcriptURL variant=quiet "Export transcript"

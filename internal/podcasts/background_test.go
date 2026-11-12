@@ -86,7 +86,9 @@ func TestThreeDailyEditionsCompleteAsWAVWithoutSession(t *testing.T) {
 		feed += fmt.Sprintf("<item><title>Synthetic report %d</title><link>https://example.com/%d</link><pubDate>%s</pubDate><description>Synthetic evidence.</description></item>", i, i, date)
 	}
 	feed += "</channel></rss>"
-	var drafts, reviews atomic.Int32
+	const unsupported = "Synthetic unsupported sales figure"
+	const correction = "Remove the unsupported sales figure from the opening story"
+	var drafts, reviews, repairs, dossiers atomic.Int32
 	a.client = &http.Client{Transport: transportFunc(func(r *http.Request) (*http.Response, error) {
 		var body []byte
 		switch {
@@ -110,9 +112,17 @@ func TestThreeDailyEditionsCompleteAsWAVWithoutSession(t *testing.T) {
 				s := sampleScript()
 				s.Title = fmt.Sprintf("Synthetic edition %d", edition)
 				rewrite := strings.Contains(payload.Input, "The previous draft had")
+				repair := strings.Contains(payload.Input, "An earlier draft did not pass review")
 				switch {
+				case edition == 1 && repair:
+					if !strings.Contains(payload.Input, correction) {
+						t.Error("repair did not receive the editor's specific note")
+					}
+					repairs.Add(1)
+					s.Segments[2].Turns = s.Segments[2].Turns[:5]
 				case edition == 1 && rewrite:
 					s.Segments[2].Turns = s.Segments[2].Turns[:5]
+					s.Segments[2].Turns[0].Text += " " + unsupported
 				case edition == 1:
 					s.Segments[2].Turns = s.Segments[2].Turns[:3]
 				case edition == 2 && !rewrite:
@@ -133,8 +143,17 @@ func TestThreeDailyEditionsCompleteAsWAVWithoutSession(t *testing.T) {
 					t.Error("cloud review did not get the story-first narration policy")
 				}
 				reviews.Add(1)
-				body = mockResponse(`{"passed":true,"issues":[]}`)
+				review := Review{Passed: true, Issues: []string{}}
+				if strings.Contains(payload.Input, unsupported) {
+					review = Review{Issues: []string{correction}}
+				}
+				raw, err := json.Marshal(review)
+				if err != nil {
+					return nil, err
+				}
+				body = mockResponse(string(raw))
 			case strings.Contains(payload.Input, "research dossier"):
+				dossiers.Add(1)
 				body = mockResponse(strings.Repeat("S1 and S2 report synthetic evidence. S3 provides context and a different perspective. ", 6))
 			default:
 				return nil, fmt.Errorf("unexpected Responses request")
@@ -215,13 +234,20 @@ func TestThreeDailyEditionsCompleteAsWAVWithoutSession(t *testing.T) {
 		if (edition == 1) != strings.Contains(episode.LengthNote, "shorter") {
 			t.Fatalf("edition %d length note = %q", edition, episode.LengthNote)
 		}
+		if edition == 1 && !episode.EditorialRepairAttempted {
+			t.Fatal("the rejected draft was not repaired before narration")
+		}
+		transcript := request(h, "GET", "/api/episodes/"+episode.ID+"/transcript", nil, cookie, "")
+		if transcript.Code != 200 || strings.Contains(transcript.Body.String(), unsupported) {
+			t.Fatalf("edition %d exported the rejected claim or no transcript", edition)
+		}
 		audio := request(h, "GET", "/api/episodes/"+episode.ID+"/audio", nil, cookie, "")
 		if audio.Code != 200 || audio.Body.Len() <= 44 || !bytes.HasPrefix(audio.Body.Bytes(), []byte("RIFF")) {
 			t.Fatalf("edition %d did not return playable WAV audio", edition)
 		}
 	}
-	if drafts.Load() != 5 || reviews.Load() != 3 || (!realVoice && recordings.Load() < 3) {
-		t.Fatalf("expected five drafts and three editorial passes before speech, got %d/%d/%d", drafts.Load(), reviews.Load(), recordings.Load())
+	if drafts.Load() != 6 || reviews.Load() != 4 || repairs.Load() != 1 || dossiers.Load() != 3 || (!realVoice && recordings.Load() < 3) {
+		t.Fatalf("unexpected work: %d drafts, %d reviews, %d repairs, %d dossiers and %d recordings", drafts.Load(), reviews.Load(), repairs.Load(), dossiers.Load(), recordings.Load())
 	}
 	t.Logf("Three automatic episodes returned WAV without OpenAI speech or a signed-in browser (native My Voice: %t)", realVoice)
 }

@@ -175,27 +175,28 @@ type Review struct {
 	Issues []string `json:"issues"`
 }
 type Episode struct {
-	WriterProvider   string   `json:"writerProvider,omitempty"`
-	ResearchProvider string   `json:"researchProvider,omitempty"`
-	ID               string   `json:"id"`
-	Created          int64    `json:"created"`
-	ScheduledFor     int64    `json:"scheduledFor,omitempty"`
-	Updated          int64    `json:"updated"`
-	Status           string   `json:"status"`
-	Stage            string   `json:"stage"`
-	Progress         int      `json:"progress"`
-	Error            string   `json:"error"`
-	Settings         Settings `json:"settings"`
-	Cutoff           string   `json:"cutoff"`
-	Sources          []Source `json:"sources"`
-	Warnings         []string `json:"warnings"`
-	Research         string   `json:"research,omitempty"`
-	Script           Script   `json:"script"`
-	LengthNote       string   `json:"lengthNote,omitempty"`
-	Review           Review   `json:"review"`
-	Duration         float64  `json:"duration"`
-	AudioBytes       int64    `json:"audioBytes"`
-	VoiceRetryAt     int64    `json:"voiceRetryAt,omitempty"`
+	WriterProvider           string   `json:"writerProvider,omitempty"`
+	ResearchProvider         string   `json:"researchProvider,omitempty"`
+	ID                       string   `json:"id"`
+	Created                  int64    `json:"created"`
+	ScheduledFor             int64    `json:"scheduledFor,omitempty"`
+	Updated                  int64    `json:"updated"`
+	Status                   string   `json:"status"`
+	Stage                    string   `json:"stage"`
+	Progress                 int      `json:"progress"`
+	Error                    string   `json:"error"`
+	Settings                 Settings `json:"settings"`
+	Cutoff                   string   `json:"cutoff"`
+	Sources                  []Source `json:"sources"`
+	Warnings                 []string `json:"warnings"`
+	Research                 string   `json:"research,omitempty"`
+	Script                   Script   `json:"script"`
+	LengthNote               string   `json:"lengthNote,omitempty"`
+	Review                   Review   `json:"review"`
+	EditorialRepairAttempted bool     `json:"editorialRepairAttempted,omitempty"`
+	Duration                 float64  `json:"duration"`
+	AudioBytes               int64    `json:"audioBytes"`
+	VoiceRetryAt             int64    `json:"voiceRetryAt,omitempty"`
 }
 
 var safeModel = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$`)

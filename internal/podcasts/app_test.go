@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/oneworkspacestudio/one-workspace/pkg/apphost"
 	"io"
@@ -225,7 +226,7 @@ func mockResponse(text string) []byte {
 	return b
 }
 func TestCompleteProductionResumeAndEditorialGate(t *testing.T) {
-	a, h, _, s := fixture(t)
+	a, h, cookie, s := fixture(t)
 	a.p.Key = "synthetic-only"
 	setting := Defaults()
 	setting.Minutes = 8
@@ -236,6 +237,8 @@ func TestCompleteProductionResumeAndEditorialGate(t *testing.T) {
 	speech := 0
 	responses := 0
 	blocked := false
+	repairs := 0
+	const issue = "Remove the unsupported claim from the opening story"
 	mu := sync.Mutex{}
 	a.client = &http.Client{Transport: transportFunc(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Path == "/v1/audio/speech" {
@@ -258,9 +261,19 @@ func TestCompleteProductionResumeAndEditorialGate(t *testing.T) {
 			} else {
 				format := body["text"].(map[string]any)["format"].(map[string]any)
 				if format["name"] == "editorial_review" {
-					review, _ := json.Marshal(Review{Passed: !blocked, Issues: []string{}})
+					r := Review{Passed: !blocked, Issues: []string{}}
+					if blocked {
+						r.Issues = append(r.Issues, issue)
+					}
+					review, _ := json.Marshal(r)
 					b = mockResponse(string(review))
 				} else {
+					if strings.Contains(body["input"].(string), "An earlier draft did not pass review") {
+						if !strings.Contains(body["input"].(string), issue) {
+							t.Error("repair request lost the editor's note")
+						}
+						repairs++
+					}
 					script, _ := json.Marshal(sampleScript())
 					b = mockResponse(string(script))
 				}
@@ -299,10 +312,41 @@ func TestCompleteProductionResumeAndEditorialGate(t *testing.T) {
 		t.Fatal(err)
 	}
 	result, err = a.load(e2.ID, s.User.ID)
-	if err != nil || result.Status != "needs_review" || speech != before {
+	if err != nil || result.Status != "needs_review" || speech != before || repairs != 1 ||
+		!result.EditorialRepairAttempted || len(result.Review.Issues) != 1 || result.Review.Issues[0] != issue {
 		t.Fatal("failed editorial gate narrated", result.Status, err)
 	}
-	_ = h
+	beforeResponses := responses
+	if err := a.produce(context.Background(), a.provider(), &result); !errors.Is(err, errReview) || responses != beforeResponses {
+		t.Fatal("an exhausted automatic repair repeated on resume", err, responses)
+	}
+	// A retry is a continuation of this production, even with a full budget
+	// and an unavailable research connection.
+	if _, err := h.DB.Exec("INSERT INTO podcast_productions VALUES(?,?)", s.User.ID, time.Now().Unix()); err != nil {
+		t.Fatal(err)
+	}
+	a.p.ResearchProvider = "deepseek"
+	blocked = false
+	w := request(h, "POST", "/api/episodes/"+result.ID+"/retry", nil, cookie, s.CSRF)
+	if w.Code != 202 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	queued := decodeEpisode(t, w)
+	if queued.Stage != "Draft repair queued" || queued.EditorialRepairAttempted || len(queued.Review.Issues) != 1 || queued.Research != result.Research {
+		t.Fatal("retry lost saved review context")
+	}
+	if _, err := a.work(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	repaired, err := a.load(e2.ID, s.User.ID)
+	if err != nil || repaired.Status != "ready" || !repaired.Review.Passed || repairs != 2 ||
+		responses != beforeResponses+2 || speech <= before {
+		t.Fatal("saved repair did not record", repaired.Status, repairs, responses, err)
+	}
+	var productions int
+	if err := h.DB.QueryRow("SELECT count(*) FROM podcast_productions WHERE user_id=?", s.User.ID).Scan(&productions); err != nil || productions != 3 {
+		t.Fatal("draft repair consumed an episode allowance", productions, err)
+	}
 }
 func TestScriptEvidenceAndAudioLevels(t *testing.T) {
 	s := sampleScript()
