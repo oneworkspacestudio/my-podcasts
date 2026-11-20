@@ -301,9 +301,10 @@ Page Dashboard
                     Text variant=small "For male and female hosts, install or reinstall Pocket TTS in My Voice Settings."
                   If condition=$managedVoiceLink
                     Link href="/voice/" target=_blank variant=quiet "Open My Voice"
-                  Text variant=small "In My Voice → Settings → Podcasts narration, issue a credential. Paste it here and save connections."
+                  Text variant=small "Create a key in My Voice → Settings → API keys. Paste it here and save connections."
                   Input name=voiceURL value=$voiceURL label="My Voice URL on this server"
-                  Input name=voiceToken value=$voiceToken type=password label="My Voice Podcasts credential" autoComplete=off placeholder="Leave blank to keep the saved credential"
+                  Input name=voiceToken value=$voiceToken type=password label="My Voice API key" autoComplete=off placeholder="Leave blank to keep the saved key"
+                  Select name=localVoiceModel value=$localVoiceModel options=$localVoiceModels label="Local narration model"
                   If condition=$voiceConnected
                     Button intent=disconnectVoice variant=text disabled=$busy "Disconnect My Voice"
                 If condition=$speechIssue

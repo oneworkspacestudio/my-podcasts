@@ -126,6 +126,7 @@ func (a *App) providerInfoLocked() map[string]any {
 		"textConfigured": p.textReady(), "researchConfigured": p.researchReady(), "speechConfigured": speechIssue == "",
 		"speechProvider": p.SpeechProvider, "speechIssue": speechIssue, "voiceURL": p.VoiceURL,
 		"voiceConnected": p.VoiceToken != "", "voiceModel": a.voice.Model, "voiceCast": a.voice.Cast,
+		"localVoiceModel": p.LocalVoiceModel,
 	}
 }
 

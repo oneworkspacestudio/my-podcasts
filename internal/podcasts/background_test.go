@@ -28,9 +28,15 @@ func TestThreeDailyEditionsCompleteAsWAVWithoutSession(t *testing.T) {
 				return
 			}
 			switch r.URL.Path {
-			case "/_internal/podcasts/status":
-				io.WriteString(w, `{"protocol":1,"ready":true,"model":"pocket18"}`)
-			case "/_internal/podcasts/speech":
+			case "/v2/audio/models":
+				io.WriteString(w, `{"protocol":2,"choices":[{"value":"pocket18","installed":true,"voices":["default","alba","marius"]}]}`)
+			case "/v2/audio/speech":
+				var request struct{ Model, Voice, Input string }
+				if json.NewDecoder(r.Body).Decode(&request) != nil || request.Model != "pocket18" || request.Input == "" || (request.Voice != "marius" && request.Voice != "alba") {
+					t.Error("narration request omitted app-owned model or preset")
+					w.WriteHeader(400)
+					return
+				}
 				recordings.Add(1)
 				w.Header().Set("X-Voice-Sample-Rate", "24000")
 				w.Write(bytes.Repeat([]byte{0x10, 0x02}, 4096))

@@ -21,9 +21,10 @@ pair DeepSeek web search with the local writer.
 
 Choose your interests, people and publications, then generate. Narration uses
 My Voice on the same Workspace server by default. Install a supported stock
-model in My Voice, then open **Settings → Podcasts narration** and issue a
-credential. In My Podcasts, open **Settings → Narration**, paste the credential
-and save the connection. The suggested address uses the managed My Voice port.
+model in My Voice and create a key under **My Voice → Settings → API keys**.
+In **My Podcasts → Connections → Narration**, paste the key, choose the local
+model and save. Automatic prefers an installed Pocket model with two presets.
+The suggested address uses the managed My Voice port.
 
 In **Create → Background production**, choose **Three times daily** and save
 show settings. The schedule can be saved before the voice connection is ready.

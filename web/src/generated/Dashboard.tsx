@@ -432,9 +432,10 @@ export function Dashboard({ data, onAction }: { data: any; onAction: (name: stri
                               {data.managedVoiceLink && (
                                 <Link href="/voice/" target="_blank" variant="quiet">Open My Voice</Link>
                               )}
-                              <Text variant="small">In My Voice → Settings → Podcasts narration, issue a credential. Paste it here and save connections.</Text>
+                              <Text variant="small">Create a key in My Voice → Settings → API keys. Paste it here and save connections.</Text>
                               <Input name="voiceURL" value={data.voiceURL} label="My Voice URL on this server" />
-                              <Input name="voiceToken" value={data.voiceToken} type="password" label="My Voice Podcasts credential" autoComplete="off" placeholder="Leave blank to keep the saved credential" />
+                              <Input name="voiceToken" value={data.voiceToken} type="password" label="My Voice API key" autoComplete="off" placeholder="Leave blank to keep the saved key" />
+                              <Select name="localVoiceModel" value={data.localVoiceModel} options={data.localVoiceModels} label="Local narration model" />
                               {data.voiceConnected && (
                                 <Button intent="disconnectVoice" variant="text" disabled={data.busy}>Disconnect My Voice</Button>
                               )}

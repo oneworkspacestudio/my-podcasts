@@ -372,6 +372,7 @@ func (a *App) produce(ctx context.Context, p providers, e *Episode) error {
 		}
 		p.TTSModel = status.Model
 		p.voiceCast = status.Cast
+		p.voiceProtocol = status.Protocol
 	} else if p.Key == "" {
 		return a.awaitVoice(ctx, e, "Connect voices in Connections. Your research and reviewed script are saved")
 	}

@@ -29,7 +29,7 @@ const disconnects:Record<string,{flag:string;label:string}> = {
 };
 function App(){
  const[page,setPage]=useState('library'),[state,setState]=useState<Obj>({episodes:[],people:[],feeds:[],provider:{}}),[form,setForm]=useState<Obj>(empty),[detail,setDetail]=useState<Obj|null>(null),[seek,setSeek]=useState<Obj>(),[loading,setLoading]=useState(true),[signedOut,setSignedOut]=useState(false),[boot,setBoot]=useState<Obj>({}),[owner,setOwner]=useState(false),[error,setError]=useState(''),[toast,setToast]=useState(''),[busy,setBusy]=useState(false),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[key,setKey]=useState(''),[xToken,setXToken]=useState(''),[model,setModel]=useState('gpt-5.4'),[ttsModel,setTTSModel]=useState('gpt-4o-mini-tts');
- const[connections,setConnections]=useState<Obj>({textProvider:'openai',researchProvider:'auto',deepSeekModel:'deepseek-v4-pro',deepSeekKey:'',serviceURL:'http://127.0.0.1:9042',serviceToken:'',speechProvider:'myvoice',voiceURL:'',voiceToken:''});
+ const[connections,setConnections]=useState<Obj>({textProvider:'openai',researchProvider:'auto',deepSeekModel:'deepseek-v4-pro',deepSeekKey:'',serviceURL:'http://127.0.0.1:9042',serviceToken:'',speechProvider:'myvoice',voiceURL:'',voiceToken:'',localVoiceModel:''});
  const [introFiles,setIntroFiles]=useState<{introFirst?:File;introSecond?:File}>({});
  const epoch=useRef(0),dirty=useRef(false),refreshSequence=useRef(0);
  const check=useRef<AbortController|null>(null);
@@ -48,7 +48,7 @@ function App(){
   if(!latest())return;
   setState(data);
   if(initial||!dirty.current)setForm(data.settings);
-  if(initial){setModel(data.provider.model);setTTSModel(data.provider.ttsModel);setConnections(c=>({...c,textProvider:data.provider.textProvider,researchProvider:data.provider.researchProvider,deepSeekModel:data.provider.deepSeekModel,serviceURL:data.provider.serviceURL,speechProvider:data.provider.speechProvider,voiceURL:data.provider.voiceURL}));}
+  if(initial){setModel(data.provider.model);setTTSModel(data.provider.ttsModel);setConnections(c=>({...c,textProvider:data.provider.textProvider,researchProvider:data.provider.researchProvider,deepSeekModel:data.provider.deepSeekModel,serviceURL:data.provider.serviceURL,speechProvider:data.provider.speechProvider,voiceURL:data.provider.voiceURL,localVoiceModel:data.provider.localVoiceModel||''}));}
   if(detail){const episode=await api('episodes/'+detail.id);if(latest())setDetail(previous=>previous?.id===episode.id?episode:previous);}
  }
  async function checkWriter(){
@@ -72,7 +72,7 @@ function App(){
    setIntroFiles(files=>({...files,[name]:value instanceof File?value:undefined}));return;
   }
   if(typeof value!=='string'&&typeof value!=='boolean')return;
-  if(['textProvider','researchProvider','deepSeekModel','deepSeekKey','serviceURL','serviceToken','speechProvider','voiceURL','voiceToken'].includes(name)){setConnections(c=>({...c,[name]:value}));return;}if(name==='email'){setEmail(String(value));return;}if(name==='password'){setPassword(String(value));return;}if(name==='key'){setKey(String(value));return;}if(name==='xToken'){setXToken(String(value));return;}if(name==='model'){setModel(String(value));return;}if(name==='ttsModel'){setTTSModel(String(value));return;}dirty.current=true;if(name.startsWith('person:')||name.startsWith('feed:')){const[category,id]=name.split(':'),field=category==='person'?'people':'feeds';setForm(f=>({...f,[field]:value?[...f[field],id]:f[field].filter((x:string)=>x!==id)}));return;}setForm(f=>({...f,[name]:['minutes','lookbackHours'].includes(name)?Number(value):value}));}
+  if(['textProvider','researchProvider','deepSeekModel','deepSeekKey','serviceURL','serviceToken','speechProvider','voiceURL','voiceToken','localVoiceModel'].includes(name)){setConnections(c=>({...c,[name]:value}));return;}if(name==='email'){setEmail(String(value));return;}if(name==='password'){setPassword(String(value));return;}if(name==='key'){setKey(String(value));return;}if(name==='xToken'){setXToken(String(value));return;}if(name==='model'){setModel(String(value));return;}if(name==='ttsModel'){setTTSModel(String(value));return;}dirty.current=true;if(name.startsWith('person:')||name.startsWith('feed:')){const[category,id]=name.split(':'),field=category==='person'?'people':'feeds';setForm(f=>({...f,[field]:value?[...f[field],id]:f[field].filter((x:string)=>x!==id)}));return;}setForm(f=>({...f,[name]:['minutes','lookbackHours'].includes(name)?Number(value):value}));}
  async function save(){await api('settings','PUT',form);dirty.current=false;await refresh();}
  async function act(intent:string,payload?:unknown){setError('');if(['library','studio','queue','sources','settings'].includes(intent)){setPage(intent);return;}if(busy)return;setBusy(true);try{
   if(intent==='login'){const r=await fetch(base+'/api/'+(boot.needsSetup?'setup':'login'),{method:'POST',headers:{'Content-Type':'application/json','X-Setup-Token':setupToken},body:JSON.stringify({email,password})});if(!r.ok)throw new Error(boot.needsSetup?'Open the private first-use link printed by the app and choose an email and a password of at least 12 characters.':'Sign-in failed. Check your email and password.');setPassword('');location.reload();return;}
@@ -145,6 +145,7 @@ function App(){
   introsEnabled:state.introsEnabled,
   introSelection:[introFiles.introFirst?.name,introFiles.introSecond?.name].filter(Boolean).join(' · '),
   introSaveDisabled:busy||!introFiles.introFirst||!introFiles.introSecond,
+  localVoiceModels:options({'':'Automatic','pocket18':'Pocket TTS 18M','pocket7':'Pocket TTS 7M',moss:'MOSS TTS Nano',qwen06:'Qwen3 TTS 0.6B',qwen17:'Qwen3 TTS 1.7B'}),
   localDuo:state.provider.speechProvider==='myvoice'&&state.provider.voiceCast==='marius-alba-v1',
   cloudSpeech:state.provider.speechProvider==='openai',cloudSpeechDraft:connections.speechProvider==='openai',localSpeechSelected:connections.speechProvider==='myvoice',managedVoiceLink:boot.oidc,voiceConnected:state.provider.voiceConnected,speechIssue:state.provider.speechIssue,speechOptions:options({myvoice:'My Voice · local on this server',openai:'OpenAI speech · optional'}),
   deepSeekConnected:state.provider.deepSeekConfigured,serviceConnected:state.provider.serviceConfigured,openAIConnected:state.provider.connected,xConnected:state.provider.xConnected,

@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"time"
 )
@@ -18,9 +19,10 @@ import (
 var errVoiceUnavailable = errors.New("My Voice is temporarily unavailable")
 
 type voiceStatus struct {
-	Model string
-	Cast  string
-	Issue string
+	Protocol int
+	Model    string
+	Cast     string
+	Issue    string
 }
 
 func defaultVoiceURL(listen string, managed bool) string {
@@ -55,7 +57,7 @@ func (a *App) voiceRequest(ctx context.Context, p providers, method, path string
 	if !validVoiceURL(p.VoiceURL) || !validVoiceToken(p.VoiceToken) {
 		return nil, errors.New("Connect My Voice in Connections to record this episode")
 	}
-	r, err := http.NewRequestWithContext(ctx, method, p.VoiceURL+"/_internal/podcasts/"+path, bytes.NewReader(body))
+	r, err := http.NewRequestWithContext(ctx, method, p.VoiceURL+path, bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +74,53 @@ func (a *App) probeVoice(ctx context.Context, p providers) voiceStatus {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
-	res, err := a.voiceRequest(ctx, p, "GET", "status", nil)
+	res, err := a.voiceRequest(ctx, p, "GET", "/v2/audio/models", nil)
+	if err != nil {
+		return voiceStatus{Issue: "My Voice is offline. Start it on this Workspace server"}
+	}
+	if res.StatusCode != http.StatusNotFound {
+		defer res.Body.Close()
+		if res.StatusCode == http.StatusUnauthorized {
+			return voiceStatus{Issue: "My Voice rejected the API key. Create a key in My Voice Settings"}
+		}
+		var catalog struct {
+			Protocol int
+			Choices  []struct {
+				Value     string
+				Installed bool
+				Voices    []string
+			}
+		}
+		if res.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(res.Body, 32768)).Decode(&catalog) != nil || catalog.Protocol != 2 {
+			return voiceStatus{Issue: "Could not read the My Voice model list"}
+		}
+		order := []string{"pocket18", "pocket7", "moss", "qwen06", "qwen17"}
+		if p.LocalVoiceModel != "" {
+			order = []string{p.LocalVoiceModel}
+		}
+		for _, duo := range []bool{true, false} {
+			for _, id := range order {
+				for _, choice := range catalog.Choices {
+					if choice.Value != id || !choice.Installed || !slices.Contains(choice.Voices, "default") {
+						continue
+					}
+					cast := "single-v1"
+					if slices.Contains(choice.Voices, "alba") && slices.Contains(choice.Voices, "marius") {
+						cast = "marius-alba-v1"
+					}
+					if (cast == "marius-alba-v1") == duo {
+						return voiceStatus{Protocol: 2, Model: id, Cast: cast}
+					}
+				}
+			}
+		}
+		return voiceStatus{Issue: "Install the selected English narration model in My Voice Settings"}
+	}
+	res.Body.Close()
+	if p.LocalVoiceModel != "" {
+		return voiceStatus{Issue: "Update My Voice to use the narration model selected in My Podcasts"}
+	}
+	res, err = a.voiceRequest(ctx, p, "GET", "/_internal/podcasts/status", nil)
 	if err != nil {
 		return voiceStatus{Issue: "My Voice is offline. Start it on this Workspace server"}
 	}
@@ -106,7 +154,7 @@ func (a *App) refreshVoice(ctx context.Context) {
 	status := a.probeVoice(ctx, p)
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if p.VoiceURL == a.p.VoiceURL && p.VoiceToken == a.p.VoiceToken {
+	if p.VoiceURL == a.p.VoiceURL && p.VoiceToken == a.p.VoiceToken && p.LocalVoiceModel == a.p.LocalVoiceModel {
 		a.voice = status
 	}
 }
@@ -131,15 +179,32 @@ func (a *App) speechIssueLocked(p providers) string {
 }
 
 func (a *App) localSpeech(ctx context.Context, p providers, t Turn) ([]byte, error) {
-	turn := map[string]string{"text": cleanTranscript(t.Text), "speaker": t.Speaker, "model": p.TTSModel}
-	if p.voiceCast != "" {
-		turn["cast"] = p.voiceCast
+	var turn map[string]any
+	path := "/_internal/podcasts/speech"
+	if p.voiceProtocol == 2 {
+		path = "/v2/audio/speech"
+		voice, speed, pitch := "default", 1.02, 1.0
+		if t.Speaker == "Jamie" {
+			speed, pitch = 0.96, -1.5
+		}
+		if p.voiceCast == "marius-alba-v1" {
+			voice, speed, pitch = "marius", 1, 0
+			if t.Speaker == "Jamie" {
+				voice = "alba"
+			}
+		}
+		turn = map[string]any{"input": cleanTranscript(t.Text), "model": p.TTSModel, "voice": voice, "response_format": "pcm", "speed": speed, "pitch": pitch}
+	} else {
+		turn = map[string]any{"text": cleanTranscript(t.Text), "speaker": t.Speaker, "model": p.TTSModel}
+		if p.voiceCast != "" {
+			turn["cast"] = p.voiceCast
+		}
 	}
 	body, err := json.Marshal(turn)
 	if err != nil {
 		return nil, err
 	}
-	res, err := a.voiceRequest(ctx, p, "POST", "speech", body)
+	res, err := a.voiceRequest(ctx, p, "POST", path, body)
 	if err != nil {
 		if ctx.Err() != nil {
 			return nil, ctx.Err()

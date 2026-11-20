@@ -39,6 +39,8 @@ type providers struct {
 	Model            string `json:"model"`
 	TTSModel         string `json:"ttsModel"`
 	voiceCast        string
+	voiceProtocol    int
+	LocalVoiceModel  string `json:"localVoiceModel"`
 	SpeechProvider   string `json:"speechProvider"`
 	VoiceURL         string `json:"voiceURL"`
 	VoiceToken       string `json:"voiceToken"`
@@ -142,24 +144,25 @@ func (a *App) crypt(b []byte, encrypt bool) ([]byte, error) {
 func (a *App) provider() providers { a.mu.Lock(); defer a.mu.Unlock(); return a.p }
 func (a *App) setProviders(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		TextProvider     string `json:"textProvider"`
-		ResearchProvider string `json:"researchProvider"`
-		DeepSeekKey      string `json:"deepSeekKey"`
-		DeepSeekModel    string `json:"deepSeekModel"`
-		ServiceURL       string `json:"serviceURL"`
-		ServiceToken     string `json:"serviceToken"`
-		ClearDeepSeek    bool   `json:"clearDeepSeek"`
-		ClearService     bool   `json:"clearService"`
-		Key              string `json:"key"`
-		XToken           string `json:"xToken"`
-		Model            string `json:"model"`
-		TTSModel         string `json:"ttsModel"`
-		ClearKey         bool   `json:"clearKey"`
-		ClearX           bool   `json:"clearX"`
-		SpeechProvider   string `json:"speechProvider"`
-		VoiceURL         string `json:"voiceURL"`
-		VoiceToken       string `json:"voiceToken"`
-		ClearVoice       bool   `json:"clearVoice"`
+		TextProvider     string  `json:"textProvider"`
+		ResearchProvider string  `json:"researchProvider"`
+		DeepSeekKey      string  `json:"deepSeekKey"`
+		DeepSeekModel    string  `json:"deepSeekModel"`
+		ServiceURL       string  `json:"serviceURL"`
+		ServiceToken     string  `json:"serviceToken"`
+		ClearDeepSeek    bool    `json:"clearDeepSeek"`
+		ClearService     bool    `json:"clearService"`
+		Key              string  `json:"key"`
+		XToken           string  `json:"xToken"`
+		Model            string  `json:"model"`
+		TTSModel         string  `json:"ttsModel"`
+		ClearKey         bool    `json:"clearKey"`
+		ClearX           bool    `json:"clearX"`
+		SpeechProvider   string  `json:"speechProvider"`
+		VoiceURL         string  `json:"voiceURL"`
+		VoiceToken       string  `json:"voiceToken"`
+		LocalVoiceModel  *string `json:"localVoiceModel"`
+		ClearVoice       bool    `json:"clearVoice"`
 	}
 	if !apphost.Decode(w, r, &in) {
 		return
@@ -282,6 +285,15 @@ func (a *App) setProviders(w http.ResponseWriter, r *http.Request) {
 	if in.ClearVoice {
 		p.VoiceToken = ""
 	}
+	if in.LocalVoiceModel != nil {
+		switch *in.LocalVoiceModel {
+		case "", "pocket18", "pocket7", "moss", "qwen06", "qwen17":
+			p.LocalVoiceModel = *in.LocalVoiceModel
+		default:
+			apphost.Problem(w, 400, "Choose a local narration model")
+			return
+		}
+	}
 	raw, _ := json.Marshal(p)
 	enc, e := a.crypt(raw, true)
 	if e == nil {
@@ -292,7 +304,7 @@ func (a *App) setProviders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.p = p
-	if previous.VoiceToken != p.VoiceToken || previous.VoiceURL != p.VoiceURL {
+	if previous.VoiceToken != p.VoiceToken || previous.VoiceURL != p.VoiceURL || previous.LocalVoiceModel != p.LocalVoiceModel {
 		a.voice = voiceStatus{}
 	}
 	if revoked(previous.Key, p.Key) || revoked(previous.DeepSeekKey, p.DeepSeekKey) ||
