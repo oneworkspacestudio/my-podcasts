@@ -9,3 +9,9 @@ Cloud speech settings and reviewed scripts retain their existing contracts.
 
 Keep the 48-file managed update group and minimum manager122. No credential
 rotation, owner episode or installation is required for source verification.
+
+Preview.9 published from 7e9781c and promoted in Workspace 084ae8d.
+Go tests and vet plus the generated UI build passed. A scheduled synthetic
+production test exercises v2 and asserts explicit model and preset on each
+turn. Anonymous package verification covered all 48 managed files. No owner
+installation or real podcast production was performed.
